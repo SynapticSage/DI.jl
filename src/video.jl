@@ -1,9 +1,9 @@
 module video
+
     using Glob, Printf
     using VideoIO
-    include(".raw.jl")
-    using .raw 
     using MATLAB
+    using ..Load
 
     function getVidCollection(animal::String, day::Int)::Vector
         # Get the list of files for the epoch, videoTS files
@@ -63,4 +63,3 @@ module video
         vid       = VideoIO.openvideo(stream)
     end
 end
-export video

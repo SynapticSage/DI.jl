@@ -1,29 +1,35 @@
-function load_pathtable(animal, day)
-    f=CSV.read(datadir("paths.csv"), DataFrame; csvkws...)
-    init = Dates.Time("00:00:00")
-    function s(x)
-        x = Second.(x .- init)
-        x = [e.value for e in x]
-    end
-    transform!(f, 
-               :start=>(x->s(x))=>:start, 
-               :end=>(x->s(x))=>:end, 
-               [:end,:start]=>((e,s)->Dates.Second.(e.-s))=>:duration)
-    return f
-end
-
 module path
 
-    using Plots, Measures
     using DrWatson
+
+    import CSV
+    using DataFrames
+
+    using Plots, Measures
     using Statistics
     using ImageFiltering
     using ColorSchemes
-    include("../raw.jl")
-    import .raw
+    
+    import ..Load
+
+    function load_pathtable(animal, day)
+        f=CSV.read(datadir("paths.csv"), DataFrame; csvkws...)
+        init = Dates.Time("00:00:00")
+        function s(x)
+            x = Second.(x .- init)
+            x = [e.value for e in x]
+        end
+        transform!(f, 
+                   :start=>(x->s(x))=>:start, 
+                   :end=>(x->s(x))=>:end, 
+                   [:end,:start]=>((e,s)->Dates.Second.(e.-s))=>:duration)
+        return f
+    end
+
+    export load_pathtable
 
     function get_frame(video,sub)
-        frame = raw.video.frameattime(video, median(sub[sub.delta .> 1,:].time))
+        frame = Load.video.frameattime(video, median(sub[sub.delta .> 1,:].time))
         frame = frame'
         diff1, diff2 = ImageFiltering.Kernel.sobel()
         frameX=ImageFiltering.imfilter(frame, diff1)
@@ -116,5 +122,5 @@ module path
 
     function newvar()
     end
+
 end
-export path

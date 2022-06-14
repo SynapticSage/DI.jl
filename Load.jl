@@ -1,8 +1,9 @@
-module raw
+module Load
     
-    #Imports
     using Revise
     using DrWatson
+    using Reexport
+
     using DataFrames
     import CSV, Arrow
     using Statistics
@@ -14,32 +15,26 @@ module raw
     using Colors
 
     # Fetch maze internal imports
-    include("utils.jl")
-    import .utils
-    include("table.jl")
-    import .table
-    using .table: get_periods
-    findnearest = utils.searchsortednearest
+    import Utils
+    import Table
+    using Table: get_periods
+    findnearest = Utils.searchsortednearest
     __revise_mode__ = :eval
 
     load_default="arrow"
-
-    components = [
-        "./raw/behavior.jl",
-         "./raw/lfp.jl",
-         "./raw/task.jl",
-         "./raw/decode.jl",
-         "./raw/celltet.jl",
-         "./raw/spikes.jl",
-         "./raw/ripples.jl",
-         "./raw/dlc.jl",
-         "./raw/utils.jl"
-    ]
-    for comp in components
-        comp = replace(comp,"./"=>"$(srcdir())/")
-        println("$comp")
-        include(comp)
-    end
+    
+    push!(LOAD_PATH, srcdir("Load","src"))
+    @reexport using behavior
+    @reexport using celltet
+    @reexport using decode
+    @reexport using dlc
+    @reexport using lfp
+    @reexport using path
+    @reexport using spikes
+    @reexport using task
+    @reexport using utils
+    @reexport using video
+    pop!(LOAD_PATH)
 
     load_functions = Dict(
         "cycles"   => load_cycles,

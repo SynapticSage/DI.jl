@@ -1,7 +1,7 @@
 module dlc
     using Glob, Printf
     using CSV, DataFrames
-    using ..raw 
+    using ..Load
     function get_path(animal, day, epoch; dayfactor=0, 
             guessdayfactor=true, filtered=false, source="deeplabcut")
         if guessdayfactor
