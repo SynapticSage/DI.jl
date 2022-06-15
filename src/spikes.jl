@@ -1,20 +1,22 @@
 module spikes
 
     export load_spikes, save_spikes, spikespath
-    import ..Load: load_default, load_kws, csvkws, save_table, load_table
+    import ..Load
+    using DrWatson
+    using DataFrames
     
 
-    function spikespath(animal::String, day::Int; type::String=load_default)
+    function spikespath(animal::String, day::Int; type::String=Load.load_default)
         rawSpikingCSV = DrWatson.datadir("exp_raw",
                                          "visualize_raw_neural",
                                          "$(animal)_$(day)_labeled_spiking.$type"
                                         )
     end
 
-    function load_spikes(animal::String, day::Int; type::String=load_default, beh=Nothing, kws...)
+    function load_spikes(animal::String, day::Int; type::String=Load.load_default, beh=Nothing, kws...)
         if type == "csv"
             typemap = Dict(Int64=>Int16);
-            load_kws = (;strict=false, typemap=typemap, missingstring=["NaN", "NaNNaNi", "NaNNaNi,", ""], csvkws...)
+            load_kws = (;strict=false, typemap=typemap, missingstring=["NaN", "NaNNaNi", "NaNNaNi,", ""], Load.csvkws...)
         else
             load_kws = (;)
         end
@@ -36,7 +38,7 @@ module spikes
     end
 
     function save_spikes(spikes::AbstractDataFrame, pos...; kws...)
-        save_table(spikes, pos...; tablepath=:spikes, kws...)
+        Load.save_table(spikes, pos...; tablepath=:spikes, kws...)
     end
 
 end

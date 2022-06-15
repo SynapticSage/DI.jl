@@ -3,6 +3,7 @@ module utils
     export downsample
     export register, registerEventsToContinuous, filterAndRegister
     export filter, filterTables
+    using DataFrames
 
     """
         downsample(animal, day)

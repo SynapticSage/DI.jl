@@ -1,10 +1,12 @@
 module behavior
 
+    import ..Load
+    using DrWatson
     using DataFrames
-    import ..Load: load_default, load_kws, csvkws, save_table, load_table
-    export load_behavior, save_behavior, behaviorpath
+    using Infiltrator
+    export save_behavior, load_behavior, behaviorpath
 
-    function behaviorpath(animal::String, day::Int, tag::String=""; type::String=load_default)
+    function behaviorpath(animal::String, day::Int, tag::String=""; type::String=Load.load_default)
         tag  = length(tag) == 0 ? tag : "_$tag"
         path = datadir("exp_raw", "visualize_raw_neural",
                          "$(animal)_$(day)_beh$tag.$type")
@@ -15,7 +17,7 @@ module behavior
     end
 
     function load_behavior(animal::String, day::Int, tag::String="";
-        type::String=load_default, kws...)
+        type::String=Load.load_default, kws...)
         function typeFunc(type, name)
             if occursin("Vec", string(name))
                 type = ComplexF32;
@@ -32,7 +34,7 @@ module behavior
         else
             load_kws = (;)
         end
-        beh = load_table(animal, day, tag; tablepath=:behavior, type=type, 
+        beh = Load.load_table(animal, day, tag; tablepath=:behavior, type=type, 
                             load_kws=load_kws, kws...)
         if type == "csv"
             if beh.time isa Vector{String}
@@ -52,9 +54,7 @@ module behavior
     end
 
     function save_behavior(behavior::AbstractDataFrame, pos...; kws...)
-        save_table(behavior, pos...; tablepath=:behavior, kws...)
+        Load.save_table(behavior, pos...; tablepath=:behavior, kws...)
     end
-
-    
 
 end

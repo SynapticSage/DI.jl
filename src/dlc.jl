@@ -1,7 +1,11 @@
 module dlc
+
     using Glob, Printf
     using CSV, DataFrames
-    using ..Load
+    import ..Load
+    using DrWatson
+    export load_behavior, save_behavior, behaviorpath
+
     function get_path(animal, day, epoch; dayfactor=0, 
             guessdayfactor=true, filtered=false, source="deeplabcut")
         if guessdayfactor
@@ -28,7 +32,7 @@ module dlc
     end
     function load(pos...; kws...)
         df = CSV.read(get_path(pos...;kws...), DataFrame; header=3, skipto=4,
-                     csvkws...)
+                     Load.csvkws...)
         transform!(df, :coords=>(x->x*(1/30))=>:time, 
                       [:x,:x_1]=>((a,b)->(a.+b)./2)=>:X,
                       [:y,:y_1]=>((a,b)->(a.+b)./2)=>:Y,

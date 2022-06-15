@@ -22,19 +22,32 @@ module Load
     __revise_mode__ = :eval
 
     load_default="arrow"
+
+    @infiltrate
+
+    include(srcdir("Load","src", "behavior.jl"))
+    include(srcdir("Load","src", "celltet.jl"))
+    include(srcdir("Load","src", "decode.jl"))
+    include(srcdir("Load","src", "dlc.jl"))
+    include(srcdir("Load","src", "lfp.jl"))
+    include(srcdir("Load","src", "path.jl"))
+    include(srcdir("Load","src", "spikes.jl"))
+    include(srcdir("Load","src", "ripples.jl"))
+    include(srcdir("Load","src", "task.jl"))
+    include(srcdir("Load","src", "utils.jl"))
+    include(srcdir("Load","src", "video.jl"))
     
-    push!(LOAD_PATH, srcdir("Load","src"))
-    @reexport using behavior
-    @reexport using celltet
-    @reexport using decode
-    @reexport using dlc
-    @reexport using lfp
-    @reexport using path
-    @reexport using spikes
-    @reexport using task
-    @reexport using utils
-    @reexport using video
-    pop!(LOAD_PATH)
+    @reexport using .behavior
+    @reexport using .celltet
+    #@reexport using .decode
+    @reexport using .dlc
+    @reexport using .lfp
+    @reexport using .path
+    @reexport using .spikes
+    @reexport using .ripples
+    @reexport using .task
+    @reexport using .utils
+    @reexport using .video
 
     load_functions = Dict(
         "cycles"   => load_cycles,
@@ -177,7 +190,7 @@ module Load
             type = load_default
         end
 
-        data = load_table_at_path(path, type; load_kws)
+        data = load_table_at_path(path, type; load_kws...)
 
         detect_complex_format_wrong = eltype.(eachcol(data)) .<: NamedTuple
         for i in findall(detect_complex_format_wrong)

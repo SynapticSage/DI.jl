@@ -1,7 +1,13 @@
 module celltet
 
     using DataFrames
-    import ..Load: load_default, load_kws, csvkws, save_table, load_table
+    import ..Load
+    using DrWatson
+    export load_cells, load_tetrode, save_cells, save_cell_table, save_cell_taginfo
+    using ProgressMeter
+    using CSV
+    import Table
+
     export cellpath
     export load_cells
     export save_cells
@@ -37,9 +43,9 @@ module celltet
         paths  = cellpaths(pos...; kws...)
         cells = DataFrame()
         @showprogress 0.1 "loading cell files" for path in paths
-            cell = CSV.read(path, DataFrame; csvkws...)
+            cell = CSV.read(path, DataFrame; Load.csvkws...)
             cells = isempty(cells) ? cell : outerjoin(cells, cell, on=:unit, makeunique=true)
-            table.clean_duplicate_cols(cells)
+            Table.clean_duplicate_cols(cells)
         end
         return cells
     end

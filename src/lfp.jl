@@ -1,7 +1,11 @@
 module lfp
     using DataFrames
     using NetCDF
-    import ..Load: load_default, load_kws, csvkws, save_table, load_table
+    using Infiltrator
+    using ProgressMeter
+    import ..Load
+    using DrWatson
+    export lfppath, load_lfp, save_lfp, load_cycles, save_cycles, cyclepath
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # LFP
@@ -96,7 +100,7 @@ module lfp
         cycles |> CSV.write(cyclepath(pos...))
     end
     function load_cycles(pos...)
-        cycles = load_table(pos...; tablepath=:cycles, type=type, 
+        cycles = Load.load_table(pos...; tablepath=:cycles, type=type, 
                             load_kws=load_kws, kws...)
     end
 
