@@ -218,7 +218,7 @@ module utils
             #utils.piso(data)
         end
         if filters != nothing
-            data = filter(data...; filters=filters)
+            data = utils.filter(data...; filters=filters)
         end
         return data    
     end

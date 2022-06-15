@@ -23,7 +23,6 @@ module Load
 
     load_default="arrow"
 
-    @infiltrate
 
     include(srcdir("Load","src", "behavior.jl"))
     include(srcdir("Load","src", "celltet.jl"))
