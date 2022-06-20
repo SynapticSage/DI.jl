@@ -20,7 +20,7 @@ module spikes
         else
             load_kws = (;)
         end
-        spikes = load_table(animal, day; tablepath=:spikes, type=type, 
+        spikes = Load.load_table(animal, day; tablepath=:spikes, type=type, 
                             load_kws=load_kws, kws...)
 
         # And let's add some brain area specific numbering

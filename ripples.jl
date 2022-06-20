@@ -12,7 +12,7 @@ module ripples
                                    "$(animal)_$(day)_ripple.$type") 
     end
 
-    function load_ripples(animal::String, day::Int; type::String=load_default, kws...)
+    function load_ripples(animal::String, day::Int; type::String=Load.load_default, kws...)
         if type == "csv"
             typemap = Dict(Int64=>Int16);
             load_kws = (;strict=false, typemap=typemap, missingstring=["NaN", "NaNNaNi", "NaNNaNi,", ""], Load.csvkws...)

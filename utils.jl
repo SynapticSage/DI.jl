@@ -3,6 +3,9 @@ module utils
     export downsample
     export register, registerEventsToContinuous, filterAndRegister
     export filter, filterTables
+    import Utils
+    using Statistics, NaNStatistics
+    findnearest = Utils.searchsortednearest
     using DataFrames
 
     """
