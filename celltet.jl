@@ -7,6 +7,7 @@ module celltet
     using ProgressMeter
     using CSV
     import Table
+    using Glob
 
     export cellpath
     export load_cells
