@@ -36,11 +36,14 @@ module utils
     """
     function register(data::DataFrame...; transfer,
             on::String="time", 
-            tolerance::Union{Float64, Nothing}=nothing,
+            tolerance::Union{Float64, Nothing}=0.9999,
             tolerance_violation=missing
         )::Vector{DataFrame} 
         if data isa Tuple
             data = [data...];
+        end
+        if tolerance == nothing
+            @warn "No given tolerance"
         end
         # Get our columns into target
         @debug "→ → → → → → → → → → → → "
