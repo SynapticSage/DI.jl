@@ -7,6 +7,7 @@ module utils
     using Statistics, NaNStatistics
     findnearest = Utils.searchsortednearest
     using DataFrames
+    using Infiltrator
 
     """
         downsample(animal, day)
@@ -42,7 +43,7 @@ module utils
         if data isa Tuple
             data = [data...];
         end
-        if tolerance == nothing
+        if tolerance === nothing
             @warn "No given tolerance"
         end
         # Get our columns into target
@@ -66,19 +67,26 @@ module utils
 
             match_on_source = (match_on_source,)
             indices_of_source_samples_in_target = findnearest.(match_on_source, match_on_target)
-            if tolerance != nothing
+            if tolerance !== nothing
                 δ = data[source][indices_of_source_samples_in_target, on] - data[target][:, on]
                 out_of_tolerance = abs.(δ) .> tolerance
             else
                 out_of_tolerance = zeros(Bool, size(data[target],1))
             end
 
-            for (i, item) ∈ Iterators.enumerate(columns_to_transfer)
+            for item ∈ columns_to_transfer
                 data[target][!, item] =
                 data[source][indices_of_source_samples_in_target, item]
+                if tolerance !== nothing && tolerance_violation === missing
+                    data[target][!, item] = allowmissing(data[target][!,item])
+                end
                 if any(out_of_tolerance)
                     @info mean(out_of_tolerance)
-                    data[target][out_of_tolerance, item] .= tolerance_violation
+                    try
+                        data[target][out_of_tolerance, item] .= tolerance_violation
+                    catch
+                        @infiltrate
+                    end
                 end
             end
         end
