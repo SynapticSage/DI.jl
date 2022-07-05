@@ -81,7 +81,7 @@ module utils
                     data[target][!, item] = allowmissing(data[target][!,item])
                 end
                 if any(out_of_tolerance)
-                    @info mean(out_of_tolerance)
+                    @info "mean out of tolerance => $(mean(out_of_tolerance))"
                     try
                         data[target][out_of_tolerance, item] .= tolerance_violation
                     catch
