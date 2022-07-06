@@ -4,6 +4,7 @@ module utils
     export register, registerEventsToContinuous, filterAndRegister
     export filter, filterTables
     import Utils
+    import Filt
     using Statistics, NaNStatistics
     findnearest = Utils.searchsortednearest
     using DataFrames
@@ -68,10 +69,14 @@ module utils
             match_on_source = (match_on_source,)
             indices_of_source_samples_in_target = findnearest.(match_on_source, match_on_target)
             if tolerance !== nothing
-                δ = data[source][indices_of_source_samples_in_target, on] - data[target][:, on]
+                δ = data[source][indices_of_source_samples_in_target, on] -
+                    data[target][:, on]
                 out_of_tolerance = abs.(δ) .> tolerance
             else
                 out_of_tolerance = zeros(Bool, size(data[target],1))
+            end
+            if any(out_of_tolerance)
+                @info "data[$target] mean out of tolerance=>$(mean(out_of_tolerance))"
             end
 
             for item ∈ columns_to_transfer
@@ -81,7 +86,6 @@ module utils
                     data[target][!, item] = allowmissing(data[target][!,item])
                 end
                 if any(out_of_tolerance)
-                    @info "mean out of tolerance => $(mean(out_of_tolerance))"
                     try
                         data[target][out_of_tolerance, item] .= tolerance_violation
                     catch
@@ -93,6 +97,7 @@ module utils
         @debug "← ← ← ← ← ← ← ← ← ← ← ← "
         return data
     end
+
     """
     register
 
@@ -182,7 +187,8 @@ module utils
 
     instructions to query/filter values in a set of dataframes
     """
-    function filter(data::DataFrame...; filters::AbstractDict=Dict())::Vector{DataFrame}
+    function filter(data::DataFrame...; filters::AbstractDict=Dict(),
+            filter_skipmissingcols::Bool=false)::Vector{DataFrame}
         data = [data...]
         @debug "→ → → → → → → → → → → → "
         @debug "Filtration"
@@ -193,9 +199,14 @@ module utils
                 @assert !(filt_for_cols isa Bool)
                 @assert !(filt_for_cols isa Vector{Bool})
                 @assert !(cols isa Vector{Bool})
+                list_cols = cols isa Vector ? String.(cols) : String.([cols])
+                if filter_skipmissingcols && any(c ∉ names(data[i]) for c ∈ list_cols)
+                    @info "data[$i] missing col ∈ cols=$cols, skip filter"
+                    continue
+                end
                 if filt_for_cols isa Function
                     #println("Filter is a function")
-                    inds = filt_for_cols(data[i][!, cols]);
+                    inds = filt_for_cols(data[i][!, cols])
                 elseif typeof(filt_for_cols) <: Vector
                     #println("Filter is a set of functions")
                     inds = accumulate(.&, [ff(data[i][!, cols]) for ff
@@ -206,6 +217,7 @@ module utils
                     @debug "filt_for_cols = $filt_for_cols"
                     throw(TypeError(:filt_for_cols, "",Vector,typeof(filt_for_cols)))
                 end
+                inds = replace(inds, missing=>false)
                 percent = mean(inds)*100
                 @debug "data_$i filtration: $percent percent pass filter on $cols"
                 x = data[i][findall(inds), :];
@@ -220,21 +232,33 @@ module utils
     end
 
     """
-    `filterAndRegister`
+        filterAndRegister
 
     combination of  `raw.filter()` and `raw.register()` steps
     """
     function filterAndRegister(data::DataFrame...;
             filters::Union{Nothing,AbstractDict}=nothing, transfer=nothing,
-            on="time")::Vector{DataFrame}
-        if transfer != nothing
+            on="time", filter_skipmissingcols::Bool=false)::Vector{DataFrame}
+        if filters !== nothing
+            required_cols  = Filt.get_filter_req(filters)
+            missing_fields = Vector{Vector{String}}(undef, length(data)-1)
+            for i in 2:length(data)
+                missing_fields[i-1] = setdiff(required_cols, names(data[i]))
+            end
+            if !(isempty(missing_fields))
+                @info "Adding missing_fields=$missing_fields to transfer=$transfer"
+                transfer = unique(collect(Iterators.flatten([transfer, 
+                                 missing_fields...])))
+            end
+        end
+        if transfer !== nothing
             data = register(data...; transfer=transfer, on=on)
             #utils.piso(data)
         end
-        if filters != nothing
-            data = utils.filter(data...; filters=filters)
+        if filters !== nothing
+            data = utils.filter(data...; filters=filters, filter_skipmissingcols)
         end
-        return data    
+        return collect(data)
     end
 
     """
