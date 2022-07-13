@@ -75,9 +75,9 @@ module utils
             else
                 out_of_tolerance = zeros(Bool, size(data[target],1))
             end
-            if any(out_of_tolerance)
-                @info "data[$target] mean out of tolerance=>$(mean(out_of_tolerance))"
-            end
+            @debug any(out_of_tolerance) ? 
+            "data[$target] mean out of tolerance=>$(mean(out_of_tolerance))" :
+            "no out of tolerance"
 
             for item ∈ columns_to_transfer
                 data[target][!, item] =
@@ -188,7 +188,8 @@ module utils
     instructions to query/filter values in a set of dataframes
     """
     function filter(data::DataFrame...; filters::AbstractDict=Dict(),
-            filter_skipmissingcols::Bool=false)::Vector{DataFrame}
+            filter_skipmissingcols::Bool=false,
+        )::Vector{DataFrame}
         data = [data...]
         @debug "→ → → → → → → → → → → → "
         @debug "Filtration"
@@ -201,7 +202,7 @@ module utils
                 @assert !(cols isa Vector{Bool})
                 list_cols = cols isa Vector ? String.(cols) : String.([cols])
                 if filter_skipmissingcols && any(c ∉ names(data[i]) for c ∈ list_cols)
-                    @info "data[$i] missing col ∈ cols=$cols, skip filter"
+                    @debug "data[$i] missing col ∈ cols=$cols, skip filter"
                     continue
                 end
                 if filt_for_cols isa Function
@@ -238,7 +239,8 @@ module utils
     """
     function filterAndRegister(data::DataFrame...;
             filters::Union{Nothing,AbstractDict}=nothing, transfer=nothing,
-            on="time", filter_skipmissingcols::Bool=false)::Vector{DataFrame}
+            on="time", filter_skipmissingcols::Bool=false
+            )::Vector{DataFrame}
         if filters !== nothing
             required_cols  = Filt.get_filter_req(filters)
             missing_fields = Vector{Vector{String}}(undef, length(data)-1)
@@ -246,7 +248,7 @@ module utils
                 missing_fields[i-1] = setdiff(required_cols, names(data[i]))
             end
             if !(isempty(missing_fields))
-                @info "Adding missing_fields=$missing_fields to transfer=$transfer"
+                @debug "Adding missing_fields=$missing_fields to transfer=$transfer"
                 transfer = unique(collect(Iterators.flatten([transfer, 
                                  missing_fields...])))
             end
