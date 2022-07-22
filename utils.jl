@@ -194,7 +194,7 @@ module utils
         @debug "→ → → → → → → → → → → → "
         @debug "Filtration"
         @debug "→ → → → → → → → → → → → "
-        for (cols, filt_for_cols) ∈ filters
+        @inbounds for (cols, filt_for_cols) ∈ filters
             for i ∈ 1:length(data)
                 @assert !(cols isa Bool)
                 @assert !(filt_for_cols isa Bool)
@@ -210,7 +210,7 @@ module utils
                     inds = filt_for_cols(data[i][!, cols])
                 elseif typeof(filt_for_cols) <: Vector
                     #println("Filter is a set of functions")
-                    inds = accumulate(.&, [ff(data[i][!, cols]) for ff
+                    inds = @fastmath accumulate(.&, [ff(data[i][!, cols]) for ff
                                            in filt_for_cols])[end]
                 else
                     @debug "cols = $cols"
