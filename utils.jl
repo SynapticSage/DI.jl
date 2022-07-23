@@ -39,7 +39,8 @@ module utils
     function register(data::DataFrame...; transfer,
             on::String="time", 
             tolerance::Union{Float64, Nothing}=0.9999,
-            tolerance_violation=missing
+            tolerance_violation=missing,
+            convert_type=Float64
         )::Vector{DataFrame} 
         if data isa Tuple
             data = [data...];
@@ -51,7 +52,7 @@ module utils
         @debug "→ → → → → → → → → → → → "
         @debug "Registration"
         @debug "→ → → → → → → → → → → → "
-        for col ∈ transfer
+        for col ∈ transfer #todo! try to engineer this loop out
             source = col[1].source
             target = col[1].target
             columns_to_transfer   = col[2]
@@ -63,8 +64,8 @@ module utils
             match_on_source = data[source][:, on]
             match_on_target = data[target][:, on]
 
-            match_on_target = convert.(Float64, match_on_target)
-            match_on_source = convert.(Float64, match_on_source)
+            match_on_target = typeof(match_on_target) == convert_type ? match_on_target : convert(Vector{convert_type}, match_on_target)
+            match_on_source = typeof(match_on_target) == convert_type ? match_on_source : convert(Vector{convert_type}, match_on_source)
 
             match_on_source = (match_on_source,)
             indices_of_source_samples_in_target = findnearest.(match_on_source, match_on_target)
@@ -75,6 +76,7 @@ module utils
             else
                 out_of_tolerance = zeros(Bool, size(data[target],1))
             end
+
             @debug any(out_of_tolerance) ? 
             "data[$target] mean out of tolerance=>$(mean(out_of_tolerance))" :
             "no out of tolerance"
