@@ -4,7 +4,6 @@ module utils
     export register, registerEventsToContinuous, filterAndRegister
     export filter, filterTables
     import Utils
-    import Filt
     using Statistics, NaNStatistics
     findnearest = Utils.searchsortednearest
     using DataFrames
@@ -57,8 +56,7 @@ module utils
             tolerance::Union{Float64, Nothing}=0.9999,
             tolerance_violation=missing,
             convert_type::Type=Float64
-        )::Vector{DataFrame} 
-        @info "Did IT!"
+        )::Tuple{DataFrame, DataFrame} 
         if tolerance === nothing
             @warn "No given tolerance"
         end
@@ -95,36 +93,39 @@ module utils
         else
             out_of_tolerance = zeros(Bool, size(target,1))
         end
+        any_out_of_tol = any(out_of_tolerance)
 
-        @debug any(out_of_tolerance) ? 
-        "mean out of tolerance=>$(mean(out_of_tolerance))" :
-        "no out of tolerance"
-
-        @infiltrate
-
-        # Move columns
-        target[!, transfer] =
-        source[indices_of_source_samples_in_target, transfer]
-
-        # If tolerance vio is nothing, drop out of tolerance entries
         if tolerance_violation === nothing
             target = target[Not(out_of_tolerance), :]
             indices_of_source_samples_in_target = 
                 indices_of_source_samples_in_target[Not(out_of_tolerance)]
-        elseif tolerance_violation === missing
-            for item ∈ transfer
-                target[!, item] = allowmissing(target[!,item])
-            end
         end
 
-        # Write in tolerance violations
-        if  tolerance !== nothing &&
-            tolerance_violation !== nothing && 
-            any(out_of_tolerance)
-            try
-                target[out_of_tolerance, transfer] .= tolerance_violation
-            catch
-                @infiltrate
+        for col ∈ transfer
+
+            @debug any(out_of_tolerance) ? 
+            "mean out of tolerance=>$(mean(out_of_tolerance))" :
+            "no out of tolerance"
+
+            rows = size(target,1)
+            #if (col ∉ propertynames(target) && col ∉ names(target)) ||
+            #    typeof(target[!,col]) != Vector{eltype(source[!,col])}
+                target[!,col] = Vector{eltype(source[!,col])}(undef, rows)
+            #end
+
+            # Move columns
+            target[!, col] = source[indices_of_source_samples_in_target, col]
+
+            # If tolerance vio is nothing, drop out of tolerance entries
+            if tolerance_violation === missing
+                target[!, col] = allowmissing(target[!,col])
+            end
+
+            # Write in tolerance violations
+            if  tolerance !== nothing &&
+                tolerance_violation !== nothing && 
+                any_out_of_tol
+                target[out_of_tolerance, col] .= tolerance_violation
             end
         end
 
@@ -228,11 +229,13 @@ module utils
                     @debug "filt_for_cols = $filt_for_cols"
                     throw(TypeError(:filt_for_cols, "",Vector,typeof(filt_for_cols)))
                 end
-                inds = replace(inds, missing=>false)
-                percent = mean(inds)*100
-                @debug "data_$i filtration: $percent percent pass filter on $cols"
-                x = data[i][findall(inds), :];
-                data[i] = x;
+                replace!(inds, missing=>false)
+                inds = disallowmissing(inds)
+                @debug begin
+                    percent = mean(inds)*100
+                    "data_$i filtration: $percent percent pass filter on $cols"
+                end
+                data[i] = data[i][inds, :];
             end
         end
         for i in 1:length(data)
@@ -252,7 +255,7 @@ module utils
             on="time", filter_skipmissingcols::Bool=false
             )::Vector{DataFrame}
         if filters !== nothing
-            required_cols  = Filt.get_filter_req(filters)
+            required_cols  = get_filter_req(filters)
             missing_fields = Vector{Vector{String}}(undef, length(data)-1)
             for i in 2:length(data)
                 missing_fields[i-1] = setdiff(required_cols, names(data[i]))
@@ -281,5 +284,17 @@ module utils
     filterTables(data::DataFrame...; filters::Union{Nothing,AbstractDict}=nothing,
                  lookupcols=nothing, lookupon="time") =
     filterAndRegister(data...;transfer=lookupcols, on=lookupon, filters=filters)
+
+
+    """
+        get_filter_req
+
+    Gets the fields required by the set of filters to operate
+    """
+    function get_filter_req(filts::AbstractDict)
+        sets = [String.(f) for f ∈ keys(filts)]
+        sets = [s isa Vector ? s : [s] for s in sets]
+        unique(collect(Iterators.flatten(sets)))
+    end
 
 end
