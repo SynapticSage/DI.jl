@@ -8,7 +8,10 @@ module utils
     using Statistics, NaNStatistics
     findnearest = Utils.searchsortednearest
     using DataFrames
+    import DataFrames: ColumnIndex
     using Infiltrator
+
+    CItype = Union{ColumnIndex, Vector{<:ColumnIndex}}
 
     """
         downsample(animal, day)
@@ -33,18 +36,29 @@ module utils
     end
 
     """
-    function register(data::DataFrame...; transfer,
-            on::String="time")::Vector{DataFrame} 
+        register
+
+    function register(source::DataFrame, target::DataFrame; 
+            transfer, on::String="time")::Vector{DataFrame}
+
+    register columns in a `source` to a `target` dataframe `on` a certain
+
+    ### Input
+    `source` -- the source dataframe to register
+    `target` -- the recipient dataframe
+
+    ### Output
+
+    column
     """
-    function register(data::DataFrame...; transfer,
-            on::String="time", 
+    function register(source::DataFrame, target::DataFrame; 
+            transfer::Vector{<:CItype},
+            on::CItype="time",
             tolerance::Union{Float64, Nothing}=0.9999,
             tolerance_violation=missing,
-            convert_type=Float64
+            convert_type::Type=Float64
         )::Vector{DataFrame} 
-        if data isa Tuple
-            data = [data...];
-        end
+        @info "Did IT!"
         if tolerance === nothing
             @warn "No given tolerance"
         end
@@ -52,79 +66,73 @@ module utils
         @debug "→ → → → → → → → → → → → "
         @debug "Registration"
         @debug "→ → → → → → → → → → → → "
-        for col ∈ transfer #todo! try to engineer this loop out
-            source = col[1].source
-            target = col[1].target
-            columns_to_transfer   = col[2]
-            if columns_to_transfer == All()
-                continue
-            end
-            @debug "columns=$columns_to_transfer from source->target on $on"
 
-            match_on_source = data[source][:, on]
-            match_on_target = data[target][:, on]
+        if transfer == All()
+            return source, target
+        end
+        @debug "columns=$transfer from source->target on $on"
 
-            match_on_target = typeof(match_on_target) == convert_type ? match_on_target : convert(Vector{convert_type}, match_on_target)
-            match_on_source = typeof(match_on_target) == convert_type ? match_on_source : convert(Vector{convert_type}, match_on_source)
+        match_on_source = source[:, on]
+        match_on_target = target[:, on]
 
-            match_on_source = (match_on_source,)
-            indices_of_source_samples_in_target = findnearest.(match_on_source, match_on_target)
-            if tolerance !== nothing
-                δ = data[source][indices_of_source_samples_in_target, on] -
-                    data[target][:, on]
-                out_of_tolerance = abs.(δ) .> tolerance
-            else
-                out_of_tolerance = zeros(Bool, size(data[target],1))
-            end
+        match_on_target = typeof(match_on_target) == convert_type ?
+                          match_on_target : convert(Vector{convert_type},
+                                                    match_on_target)
+        match_on_source = typeof(match_on_target) == convert_type ?
+                          match_on_source : convert(Vector{convert_type},
+                                                    match_on_source)
 
-            @debug any(out_of_tolerance) ? 
-            "data[$target] mean out of tolerance=>$(mean(out_of_tolerance))" :
-            "no out of tolerance"
+        # FindNearest
+        match_on_source = (match_on_source,)
+        indices_of_source_samples_in_target = findnearest.(match_on_source,
+                                                           match_on_target)
 
-            for item ∈ columns_to_transfer
-                data[target][!, item] =
-                data[source][indices_of_source_samples_in_target, item]
-                if tolerance !== nothing && tolerance_violation === missing
-                    data[target][!, item] = allowmissing(data[target][!,item])
-                end
-                if any(out_of_tolerance)
-                    try
-                        data[target][out_of_tolerance, item] .= tolerance_violation
-                    catch
-                        @infiltrate
-                    end
-                end
+        # Tolerance
+        if tolerance !== nothing
+            δ = source[indices_of_source_samples_in_target, on] -
+                target[:, on]
+            out_of_tolerance = abs.(δ) .> tolerance
+        else
+            out_of_tolerance = zeros(Bool, size(target,1))
+        end
+
+        @debug any(out_of_tolerance) ? 
+        "mean out of tolerance=>$(mean(out_of_tolerance))" :
+        "no out of tolerance"
+
+        @infiltrate
+
+        # Move columns
+        target[!, transfer] =
+        source[indices_of_source_samples_in_target, transfer]
+
+        # If tolerance vio is nothing, drop out of tolerance entries
+        if tolerance_violation === nothing
+            target = target[Not(out_of_tolerance), :]
+            indices_of_source_samples_in_target = 
+                indices_of_source_samples_in_target[Not(out_of_tolerance)]
+        elseif tolerance_violation === missing
+            for item ∈ transfer
+                target[!, item] = allowmissing(target[!,item])
             end
         end
+
+        # Write in tolerance violations
+        if  tolerance !== nothing &&
+            tolerance_violation !== nothing && 
+            any(out_of_tolerance)
+            try
+                target[out_of_tolerance, transfer] .= tolerance_violation
+            catch
+                @infiltrate
+            end
+        end
+
         @debug "← ← ← ← ← ← ← ← ← ← ← ← "
-        return data
-    end
-
-    """
-    register
-
-    function register(source::DataFrame, target::DataFrame; 
-            transfer, on::String="time")::Vector{DataFrame}
-
-    register columns in a `source` to a `target` dataframe `on` a certain
-    column
-    """
-    function register(source::DataFrame, target::DataFrame; kws...)::Union{Tuple, DataFrame}
-
-
-        if :transfer ∈ keys(kws) && kws[:transfer] isa String
-            kws=(;kws...,transfer = [kws[:transfer]])
-        end
-
-        if :transfer ∈  keys(kws) && kws[:transfer] isa Vector{String}
-            addressing = (;source=1, target=2)
-            kws = (;kws..., transfer=((addressing, kws[:transfer]),)) # create set of addressed transfer instructions
-        end
-
-        source, target, _ = register(source, target, DataFrame(); kws...)
-
         return source, target
+
     end
+
 
     function registerEventsToContinuous(events::DataFrame, target::DataFrame;
             transfer::Union{Vector{String},String}, on::String="time",
