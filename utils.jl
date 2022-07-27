@@ -87,7 +87,7 @@ module utils
 
         # Tolerance
         if tolerance !== nothing
-            δ = source[indices_of_source_samples_in_target, on] -
+            δ = @inbounds source[indices_of_source_samples_in_target, on] -
                 target[:, on]
             out_of_tolerance = abs.(δ) .> tolerance
         else
@@ -96,8 +96,8 @@ module utils
         any_out_of_tol = any(out_of_tolerance)
 
         if tolerance_violation === nothing
-            target = target[Not(out_of_tolerance), :]
-            indices_of_source_samples_in_target = 
+            target = @inbounds target[Not(out_of_tolerance), :]
+            @inbounds indices_of_source_samples_in_target = 
                 indices_of_source_samples_in_target[Not(out_of_tolerance)]
         end
 
@@ -114,7 +114,7 @@ module utils
             #end
 
             # Move columns
-            target[!, col] = source[indices_of_source_samples_in_target, col]
+            target[!, col] = @inbounds source[indices_of_source_samples_in_target, col]
 
             # If tolerance vio is nothing, drop out of tolerance entries
             if tolerance_violation === missing
@@ -125,7 +125,7 @@ module utils
             if  tolerance !== nothing &&
                 tolerance_violation !== nothing && 
                 any_out_of_tol
-                target[out_of_tolerance, col] .= tolerance_violation
+                @inbounds target[out_of_tolerance, col] .= tolerance_violation
             end
         end
 
@@ -212,16 +212,17 @@ module utils
                 @assert !(filt_for_cols isa Vector{Bool})
                 @assert !(cols isa Vector{Bool})
                 list_cols = cols isa Vector ? String.(cols) : String.([cols])
-                if filter_skipmissingcols && any(c ∉ names(data[i]) for c ∈ list_cols)
+                if filter_skipmissingcols && 
+                    any(c ∉ names(data[i]) for c ∈ list_cols)
                     @debug "data[$i] missing col ∈ cols=$cols, skip filter"
                     continue
                 end
                 if filt_for_cols isa Function
                     #println("Filter is a function")
-                    inds = filt_for_cols(data[i][!, cols])
+                    inds = @inbounds filt_for_cols(data[i][!, cols])
                 elseif typeof(filt_for_cols) <: Vector
                     #println("Filter is a set of functions")
-                    inds = @fastmath accumulate(.&, [ff(data[i][!, cols]) for ff
+                    inds = @inbounds @fastmath accumulate(.&, [ff(data[i][!, cols]) for ff
                                            in filt_for_cols])[end]
                 else
                     @debug "cols = $cols"
@@ -235,7 +236,7 @@ module utils
                     percent = mean(inds)*100
                     "data_$i filtration: $percent percent pass filter on $cols"
                 end
-                data[i] = data[i][inds, :];
+                @inbounds data[i] = data[i][inds, :];
             end
         end
         for i in 1:length(data)
@@ -250,30 +251,33 @@ module utils
 
     combination of  `raw.filter()` and `raw.register()` steps
     """
-    function filterAndRegister(data::DataFrame...;
+    function filterAndRegister(source::DataFrame, target::DataFrame;
             filters::Union{Nothing,AbstractDict}=nothing, transfer=nothing,
             on="time", filter_skipmissingcols::Bool=false
             )::Vector{DataFrame}
+        @infiltrate
         if filters !== nothing
             required_cols  = get_filter_req(filters)
-            missing_fields = Vector{Vector{String}}(undef, length(data)-1)
-            for i in 2:length(data)
-                missing_fields[i-1] = setdiff(required_cols, names(data[i]))
-            end
+            missing_fields = setdiff(required_cols, names(target))
             if !(isempty(missing_fields))
-                @debug "Adding missing_fields=$missing_fields to transfer=$transfer"
-                transfer = unique(collect(Iterators.flatten([transfer, 
-                                 missing_fields...])))
+                @debug """Adding missing_fields=$missing_fields
+                          to transfer=$transfer"""
+                transfer = unique(
+                                  collect(Iterators.flatten([transfer,
+                                                             missing_fields]))
+                                 )
             end
         end
+        @debug "register"
         if transfer !== nothing
-            data = register(data...; transfer=transfer, on=on)
+            source, target = register(source, target ; transfer=transfer, on=on)
             #utils.piso(data)
         end
+        @debug "filter"
         if filters !== nothing
-            data = utils.filter(data...; filters=filters, filter_skipmissingcols)
+            source, target = utils.filter(source, target; filters=filters, filter_skipmissingcols)
         end
-        return collect(data)
+        return [source, target]
     end
 
     """
