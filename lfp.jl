@@ -12,7 +12,7 @@ module lfp
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
     function lfppath(animal::String, day::Int; tet=nothing, type::String="nc")
-        if tet == nothing
+        if tet === nothing
             netcdf = DrWatson.datadir("exp_raw", "visualize_raw_neural",
                                              "$(animal)_$(day)_rhythm.$type")
         else
@@ -35,7 +35,7 @@ module lfp
                 pop!(v.vars, "Var1")
             end
             keyset = keys(v.vars)
-            if vars != nothing
+            if vars !== nothing
                 keyset = String.(vars)
             end
             lfp = Dict(var => Array(v.vars[var]) 

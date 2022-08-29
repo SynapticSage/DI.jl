@@ -3,7 +3,6 @@ module celltet
     using DataFrames
     import ..Load
     using DrWatson
-    export load_cells, load_tetrode, save_cells, save_cell_table, save_cell_taginfo
     using ProgressMeter
     using CSV
     import Table
@@ -13,6 +12,8 @@ module celltet
     export load_cells
     export save_cells
     export save_cell_taginfo
+    export load_cells, load_tetrode, save_cells, save_cell_table, save_cell_taginfo
+    export cell_resort
 
     """
     how to construct the path for a single cell/unit table

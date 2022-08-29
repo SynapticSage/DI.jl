@@ -1,5 +1,7 @@
 
 using Printf
+using NetCDF
+export decodedir, decodepath, load_decode
 
 function decodedir(;method::String="sortedspike", transition="empirical",
         binstate="notbinned", n_split=4, downsamp=1, speedup=1.0)
