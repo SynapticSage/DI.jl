@@ -53,14 +53,14 @@ module celltet
     end
 
     function save_cells(cells::AbstractDataFrame, pos...; kws...)
-        save_table(cells, pos...; tablepath=:cells, kws...)
+        Load.save_table(cells, pos...; tablepath=:cells, kws...)
     end
     """
     convenience wrapper to save_cells, ensuring you don't forget to tag the data
     if you meant to
     """
     function save_cell_taginfo(cells::AbstractDataFrame, animal::String, day::Int, tag::String; kws...)
-        save_table(cells, animal, day, tag; tablepath=:cells, kws...)
+        Load.save_table(cells, animal, day, tag; tablepath=:cells, kws...)
     end
 
     function cells_to_type(animal::String, day::Int, tag::String="*", 
