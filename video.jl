@@ -4,6 +4,8 @@ module video
     using VideoIO
     using MATLAB
     using ..Load
+    using Infiltrator
+    using ProtoStructs
 
     function __init__()
         mat"addpath('/home/ryoung/Code/pipeline/TrodesToMatlab')"
@@ -85,15 +87,58 @@ module video
         VideoIO.openvideo(stream)
     end
     function load_video(animal::String, day::Int, epoch::Int)
-        file = Load.video.getVidCollection("RY16",day)[epoch]
+        file = Load.video.getVidCollection("RY16",day)
+        file = file[epoch]
         @info  "file" file
         load_video(file)
     end
     
-    function load(pos...; kws...)
-        videopath = get_path(pos...; kws...)
-        stream    = VideoIO.open(videopath)
-        vid       = VideoIO.openvideo(stream)
+    struct VideoArray
+        vid::VideoIO.VideoReader
+        totaltime::Float64
+        totalframe::Float64
+        framespertime::Float64
+        behaviortime::Vector{Float64}
+        behaviorminusvidtime::Float64
+        currvidtime::Float64
+        currvidindex::Int32
+    end
+    function getVideoArray(vidpath, vid, ts)
+        totalframe = length(ts)
+        totaltime = VideoIO.get_duration(vidpath) 
+        vidtime = gettime(vid)
+        framespertime = totalframe/totaltime
+        vididx = Int32(round(vidtime*framespertime))
+        behaviorminusvidtime = ts[vididx] - vidtime
+
+        VideoArray(vid, totaltime, totalframe, totalframe/totaltime,
+                   behaviorminusvidtime, ts, vidtime, vididx)
+    end
+    function getindex(vid::VideoArray, i::Int)
+        d = i - vid.currvidindex
+        td = d / vid.framespertime
+        seek(vid, td)
+        vid.currvidindex += d
+        vid.currvidtime  += td
+        img = read(vid)'
+        img
+    end
+    function getindex(vid::VideoArray; time::Float64)
+        td = time - vid.currvidtime
+        d  = td * vid.framespertime
+        seek(vid, td)
+        vid.currvidindex += d
+        vid.currvidtime  += td
+        img = read(vid)'
+        img
+    end
+
+    function load(animal::String, day::Int, epoch::Int)
+        file = video.getVidCollection("RY16",day)
+        file = file[epoch]
+        vid = load_video(file)
+        ts = load_videots(animal, day, epoch)
+        getVideoArray(file, vid, ts)
     end
 
 
