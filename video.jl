@@ -1,6 +1,7 @@
 module video
 
     using ..Load
+    using  RecipesBase
     import  Utils
     using Glob, Printf
     using VideoIO
@@ -9,6 +10,8 @@ module video
     using ProtoStructs
     using DataFrames, DataFramesMeta
     using DimensionalData
+    using FixedPointNumbers
+    using Colors
 
     function __init__()
         mat"addpath('/home/ryoung/Code/pipeline/TrodesToMatlab')"
@@ -19,21 +22,21 @@ module video
                       "RY22"=>"/media/ryoung/Ark/RY22_direct/videos/",
                      )
 
-    function getVidCollection(animal::String, day::Int)::Vector
+    function getVideoFiles(animal::String, day::Int)::Vector
         # Get the list of files for the epoch, videoTS files
         # Load up the collection of video ts files
         globstr = "RY16video$day-*.mp4"
         glob(globstr, videoFolders[animal])
 
     end
-    function getTsCollection(animal::String, day::Int)::Vector
+    function getTsFiles(animal::String, day::Int)::Vector
         # Get the list of files for the epoch, vidoes and videoTS files
         # Load up the collection of video ts files
         globstr = "RY16timestamp$day-*.dat"
         glob(globstr, videoFolders[animal])
     end
     function ts2videots(animal::String, day::Int, timestamp::Real)
-        tsCollection = getTsCollection(animal, day)
+        tsCollection = getTsFiles(animal, day)
         ts2videots(timestamp, tsCollection)
     end
 
@@ -82,7 +85,7 @@ module video
     end
     function load_videots(animal::String, day::Int, epoch::Int; 
             center_by_loadmintime::Bool=true)
-        file = Load.video.getTsCollection("RY16",day)[epoch]
+        file = Load.video.getTsFiles("RY16",day)[epoch]
         @info  "file" file
         load_videots(file; center_by_loadmintime)
     end
@@ -96,8 +99,19 @@ module video
         @info  "file" file
         load_video(file)
     end
+
+    @recipe function plotviddimarray(v::DimArray{RGB{FixedPointNumbers.N0f8}})
+        seriestype --> :heatmap
+        (collect.(v.dims)[2:-1:1]..., v.data)
+    end
+    @userplot PlotVid
+    @recipe function plotvid(plt::PlotVid)
+        v=plt.args[1]
+        seriestype --> :heatmap
+        (collect.(v.dims)[2:-1:1]..., v.data)
+    end
     
-    mutable struct VideoArray
+    mutable struct VideoObj
         # The actualk video reader object
         vid::VideoIO.VideoReader
         # Video statistics
@@ -117,7 +131,7 @@ module video
         xaxis::Vector{Float64}
         yaxis::Vector{Float64}
     end
-    function getVideoArray(vidpath, vid, ts; cropx=nothing, cropy=nothing,
+    function getVideObj(vidpath, vid, ts; cropx=nothing, cropy=nothing,
         animal=nothing, day=nothing, epoch=nothing)
         cropx, cropy, xaxis, yaxis = computeimagecrop(vid;cropx,cropy,animal,day,epoch)
         # Basic video statistics
@@ -129,7 +143,7 @@ module video
         vididx = Int32(round(vidtime*framespertime)) + 1
         behaviorminusvidtime = ts[vididx] - vidtime
         # Create the video array object (a video object that can be indexed like an array)
-        VideoArray(vid, totaltime, totalframe, totalframe/totaltime,
+        VideoObj(vid, totaltime, totalframe, totalframe/totaltime,
                    ts, behaviorminusvidtime,
                    vidtime,
                    cropx, cropy,
@@ -171,40 +185,81 @@ module video
         task = @subset(task, :epoch .== epoch, :name .== "boundary")
         extrema(task.x), extrema(task.y)
     end
-    function indtotime(vid::VideoArray, i::Int)::Float64
+    function indtotime(vid::VideoObj, i::Int)::Float64
         @fastmath i/vid.totalframe * vid.totaltime
     end
-    function timetoind(vid::VideoArray, t::Float64)::Int32
+    function timetoind(vid::VideoObj, t::Float64)::Int32
         Int32(round(t/vid.totaltime * vid.totalframe))
     end
-    function Base.getindex(vid::VideoArray, i::Int)
+    function Base.getindex(vid::VideoObj, i::Int)
         t = indtotime(vid, i)
         seek(vid.vid, t)
         img = read(vid.vid)
         updatetime!(vid)
         DimArray(img[vid.cropx, vid.cropy], (X(vid.xaxis), Y(vid.yaxis)))
     end
-    function Base.getindex(vid::VideoArray, t::Float64)
+    function Base.getindex(vid::VideoObj, t::Float64)
         seek(vid.vid, t)
         img = read(vid.vid)
         updatetime!(vid)
         DimArray(Array(img[vid.cropx,vid.cropy]), (X(vid.xaxis), Y(vid.yaxis)))
     end
-    function Base.getindex(vid::VideoArray; time::Union{Float64,Float32,Int})
+    function Base.getindex(vid::VideoObj; time::Union{Float64,Float32,Int})
         vidtime = time - vid.behaviorminusvidtime
         vid[vidtime]
     end
-    Base.close(vid::VideoArray) = close(vid.vid)
-    function updatetime!(vid::VideoArray)
+    Base.close(vid::VideoObj) = close(vid.vid)
+    function updatetime!(vid::VideoObj)
         @fastmath vid.currvidtime = gettime(vid.vid)
     end
 
-    function load(animal::String, day::Int, epoch::Int)
-        file = video.getVidCollection(animal, day)
+    struct VideoCollection
+      vids::Vector{VideoObj}
+      starts::Vector{Float64}
+      stops::Vector{Float64}
+    end
+    function  getVideoCollection(vids::Vector{VideoObj}; 
+            end_tolerance=0.2, begin_tolerance=0.2)
+        starts = []
+        stops = []
+        for (v,vid) in enumerate(vids)
+            v == 1 ?
+                push!(starts,vid.behaviortime[begin]-begin_tolerance) :
+                push!(starts,vid.behaviortime[begin])
+            v == length(vids) ?
+                push!(stops, vid.behaviortime[end]+end_tolerance) :
+                push!(stops, vid.behaviortime[end])
+        end
+        VideoCollection(vids, starts, stops)
+    end
+    function Base.getindex(vids::VideoCollection, t::Union{Float32,Float64})::DimArray
+        v = findfirst(t .>= vids.starts .&& t .<= vids.stops)
+        v === nothing ? getNullVideoImage(vids.vids[1]) : vids.vids[v][time=t]
+    end
+    function Base.close(vids::VideoCollection)
+        [close(vid) for vid in vids.vids]
+        nothing
+    end
+    function getNullVideoImage(vid::VideoObj)
+        DimArray(fill(NaN, length(vid.xaxis), length(vid.yaxis)),
+                 (X(vid.xaxis), Y(vid.yaxis)))
+    end
+
+    function load(animal::String, day::Int, epoch::Int)::VideoObj
+        file = video.getVideoFiles(animal, day)
         file = file[epoch]
         vid = load_video(file)
         ts = load_videots(animal, day, epoch)
-        getVideoArray(file, vid, ts; animal, day, epoch)
+        getVideObj(file, vid, ts; animal, day, epoch)
+    end
+    function load(animal::String, day::Int)::VideoCollection
+        task = Load.task.load_task(animal, day)
+        epochs = unique(task.epoch)
+        vids = Vector{VideoObj}([])
+        for epoch in epochs
+            push!(vids, video.load(animal, Int(day), Int(epoch)))
+        end
+        getVideoCollection(vids)
     end
 
 
