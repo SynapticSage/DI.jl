@@ -12,6 +12,7 @@ module video
     using DimensionalData
     using FixedPointNumbers
     using Colors
+    using Statistics
 
     function __init__()
         mat"addpath('/home/ryoung/Code/pipeline/TrodesToMatlab')"
@@ -236,6 +237,13 @@ module video
     function Base.getindex(vids::VideoCollection, t::Union{Float32,Float64})::DimArray
         v = findfirst(t .>= vids.starts .&& t .<= vids.stops)
         v === nothing ? getNullVideoImage(vids.vids[1]) : vids.vids[v][time=t]
+    end
+    function Base.getindex(vids::VideoCollection, t::Vector{<:Union{Float32,Float64}})::Vector{DimArray}
+        Base.getindex.([vids], t)
+    end
+    function Base.getindex(vids::VideoCollection; epoch::Int)::DimArray
+        t = mean([vids.starts[epoch] , vids.stops[epoch]])
+        vids.vids[epoch][time=t]
     end
     function Base.close(vids::VideoCollection)
         [close(vid) for vid in vids.vids]
