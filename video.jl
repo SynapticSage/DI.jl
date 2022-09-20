@@ -1,6 +1,7 @@
 module video
 
     using ..Load
+    import  Utils
     using Glob, Printf
     using VideoIO
     using MATLAB
@@ -77,7 +78,7 @@ module video
         @info "opening $file" "readCameraModuleTimeStamps('$file')"
         ts = mat"readCameraModuleTimeStamps($file)"
         #ts = mat"readCameraModuleTimeStamps('/media/ryoung/GenuDrive/RY16_direct/videos/RY16timestamp36-01.dat')"
-        center_by_loadmintime ? ts - Load.min_time_records[end] : ts
+        center_by_loadmintime ? ts .- Load.min_time_records[end] : ts
     end
     function load_videots(animal::String, day::Int, epoch::Int; 
             center_by_loadmintime::Bool=true)
@@ -110,24 +111,15 @@ module video
         # Where we are in the video
         currvidtime::Float64
         # Pixel space cropping
-        cropx::Tuple{Int16, Int16}
-        cropy::Tuple{Int16, Int16}
+        cropx::BitVector
+        cropy::BitVector
         # Axis labels for the video axes
         xaxis::Vector{Float64}
         yaxis::Vector{Float64}
     end
-    function getVideoArray(vidpath, vid, ts; cropx=nothing, cropy=nothing)
-        # Image crop calculations
-        # -----------------------
-        sizeimg = size(read(vid))
-        if cropx === nothing; cropx = (1, sizeimg[1])
-        elseif cropx[1] == -Inf; cropx = (1, cropx[2])
-        elseif cropx[2] == Inf; cropx = (cropx[1], sizeimg[1])
-        end
-        if cropy === nothing; cropy = (1, sizeimg[2])
-        elseif cropy[1] == -Inf; cropy = (1, cropy[2])
-        elseif cropy[2] == Inf; cropy = (cropy[1], sizeimg[2])
-        end
+    function getVideoArray(vidpath, vid, ts; cropx=nothing, cropy=nothing,
+        animal=nothing, day=nothing, epoch=nothing)
+        cropx, cropy, xaxis, yaxis = computeimagecrop(vid;cropx,cropy,animal,day,epoch)
         # Basic video statistics
         totalframe = length(ts)
         totaltime = VideoIO.get_duration(vidpath) 
@@ -136,9 +128,6 @@ module video
         # Relatinoship to behavior times
         vididx = Int32(round(vidtime*framespertime)) + 1
         behaviorminusvidtime = ts[vididx] - vidtime
-        # Xaxis and Yaxis
-        xaxis = Load.pxtocm(collect(1:sizeimg[1]))
-        yaxis = Load.pxtocm(collect(1:sizeimg[2]))
         # Create the video array object (a video object that can be indexed like an array)
         VideoArray(vid, totaltime, totalframe, totalframe/totaltime,
                    ts, behaviorminusvidtime,
@@ -147,10 +136,40 @@ module video
                    xaxis, yaxis
                   )
     end
-    function cropfromtask(animal::String, day::Int, epoch::Int)
-        task = Load.load_task(animal, day, epoch)
-        task = @subset(task, :epoch .== epoch)
-        @infiltrate
+    function computeimagecrop(vid; cropx=nothing, cropy=nothing,
+        animal=nothing, day=nothing, epoch=nothing)
+
+        sizeimg = size(read(vid))
+        # Image crop calculations
+        # -----------------------
+
+        vidxax = Load.pxtocm(1:sizeimg[1])
+        vidyax = Load.pxtocm(1:sizeimg[2])
+
+        #if animal !== nothing && day !== nothing && epoch !== nothing &&
+        #    cropx === nothing && cropy === nothing
+        #    cropxN, cropyN = taskboundaries(animal, day, epoch)
+        #    cropx = cropx === nothing ? cropxN : cropx
+        #    cropy = cropy === nothing ? cropyN : cropy
+        #else
+            cropx = cropx === nothing ? (-Inf,Inf) : cropx
+            cropy = cropy === nothing ? (-Inf,Inf) : cropx
+        #end
+        # Xaxis and Yaxis
+        sizeimg = size(read(vid))
+        xaxis = Load.pxtocm(collect(1:sizeimg[1]))
+        yaxis = Load.pxtocm(collect(1:sizeimg[2]))
+        cropx = Utils.in_range(vidxax, cropx)
+        cropy = Utils.in_range(vidyax, cropy)
+        xaxis = xaxis[cropx]
+        yaxis = yaxis[cropy]
+
+        cropx, cropy, xaxis, yaxis
+    end
+    function taskboundaries(animal::String, day::Int, epoch::Int)
+        task = Load.task.load_task(animal, day)
+        task = @subset(task, :epoch .== epoch, :name .== "boundary")
+        extrema(task.x), extrema(task.y)
     end
     function indtotime(vid::VideoArray, i::Int)::Float64
         @fastmath i/vid.totalframe * vid.totaltime
@@ -161,32 +180,31 @@ module video
     function Base.getindex(vid::VideoArray, i::Int)
         t = indtotime(vid, i)
         seek(vid.vid, t)
-        img = read(vid.vid)'
+        img = read(vid.vid)
         updatetime!(vid)
-        img
+        DimArray(img[vid.cropx, vid.cropy], (X(vid.xaxis), Y(vid.yaxis)))
     end
     function Base.getindex(vid::VideoArray, t::Float64)
         seek(vid.vid, t)
         img = read(vid.vid)
         updatetime!(vid)
-        DimArray(img, X(vid.xaxis), Y(vid.yaxis))
+        DimArray(Array(img[vid.cropx,vid.cropy]), (X(vid.xaxis), Y(vid.yaxis)))
     end
     function Base.getindex(vid::VideoArray; time::Union{Float64,Float32,Int})
         vidtime = time - vid.behaviorminusvidtime
-        DimArray(vid[vidtime], X(vid.xaxis), Y(vid.yaxis))
+        vid[vidtime]
     end
     Base.close(vid::VideoArray) = close(vid.vid)
     function updatetime!(vid::VideoArray)
         @fastmath vid.currvidtime = gettime(vid.vid)
     end
 
-
     function load(animal::String, day::Int, epoch::Int)
         file = video.getVidCollection(animal, day)
         file = file[epoch]
         vid = load_video(file)
         ts = load_videots(animal, day, epoch)
-        getVideoArray(file, vid, ts)
+        getVideoArray(file, vid, ts; animal, day, epoch)
     end
 
 
