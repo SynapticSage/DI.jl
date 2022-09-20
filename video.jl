@@ -160,15 +160,16 @@ module video
         vidxax = Load.pxtocm(1:sizeimg[1])
         vidyax = Load.pxtocm(1:sizeimg[2])
 
-        #if animal !== nothing && day !== nothing && epoch !== nothing &&
-        #    cropx === nothing && cropy === nothing
-        #    cropxN, cropyN = taskboundaries(animal, day, epoch)
-        #    cropx = cropx === nothing ? cropxN : cropx
-        #    cropy = cropy === nothing ? cropyN : cropy
-        #else
-            cropx = cropx === nothing ? (-Inf,Inf) : cropx
-            cropy = cropy === nothing ? (-Inf,Inf) : cropx
-        #end
+        if animal !== nothing && day !== nothing && epoch !== nothing &&
+            cropx === nothing && cropy === nothing
+            cropyN, cropxN = taskboundaries(animal, day, epoch)
+            cropx = cropx === nothing ? cropxN : cropx
+            cropy = cropy === nothing ? cropyN : cropy
+            @info "crop" cropx  cropy
+        else
+           cropx = cropx === nothing ? (-Inf,Inf) : cropx
+           cropy = cropy === nothing ? (-Inf,Inf) : cropx
+        end
         # Xaxis and Yaxis
         sizeimg = size(read(vid))
         xaxis = Load.pxtocm(collect(1:sizeimg[1]))
