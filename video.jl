@@ -254,19 +254,19 @@ module video
                  (X(vid.xaxis), Y(vid.yaxis)))
     end
 
-    function load(animal::String, day::Int, epoch::Int)::VideoObj
+    function load_videoobj(animal::String, day::Int, epoch::Int)::VideoObj
         file = video.getVideoFiles(animal, day)
         file = file[epoch]
         vid = load_video(file)
         ts = load_videots(animal, day, epoch)
         getVideObj(file, vid, ts; animal, day, epoch)
     end
-    function load(animal::String, day::Int)::VideoCollection
+    function load_videocollection(animal::String, day::Int)::VideoCollection
         task = Load.task.load_task(animal, day)
         epochs = unique(task.epoch)
         vids = Vector{VideoObj}([])
         for epoch in epochs
-            push!(vids, video.load(animal, Int(day), Int(epoch)))
+            push!(vids, video.load_videoobj(animal, Int(day), Int(epoch)))
         end
         getVideoCollection(vids)
     end
