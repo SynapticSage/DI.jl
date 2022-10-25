@@ -11,13 +11,38 @@ module lfp
     # LFP
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-    function lfppath(animal::String, day::Int; tet=nothing, type::String="nc")
-        if tet === nothing
-            netcdf = DrWatson.datadir("exp_raw", "visualize_raw_neural",
-                                             "$(animal)_$(day)_rhythm.$type")
+    export lfppath
+    """
+        lfppath(animal::String, day::Int; tet=nothing, type::String="nc", 
+                     ref=nothing)
+
+    Obtains path to lfp file
+    """
+    function lfppath(animal::String, day::Int; tet=nothing, type::String="nc", 
+                     ref=nothing, write=false)
+        pathstring(ref,::Nothing) = DrWatson.datadir("exp_raw",
+                                     "visualize_raw_neural", 
+                                     "$(animal)_$(day)_rhythm$ref.$type")
+        pathstring(ref,tet::T where T<:Int) = DrWatson.datadir("exp_raw",
+                              "visualize_raw_neural", 
+                              "$(animal)_$(day)_rhythm$(ref)_$(tet).$type")
+        if ref === nothing
+            ref = if isfile(pathstring("ref",tet))
+                ref = true;
+            elseif isfile(pathstring("",tet))
+                ref = false;
+            else
+                if write == false
+                    error("No rhythm file $(pathstring("ref",tet))")
+                else
+                    ref = false;
+                end
+            end
+        end
+        if ref
+            pathstring("ref",tet)
         else
-            netcdf = DrWatson.datadir("exp_raw", "visualize_raw_neural",
-                                             "$(animal)_$(day)_rhythm_$tet.$type")
+            pathstring("",tet)
         end
     end
 
@@ -53,13 +78,17 @@ module lfp
             NetCDF.close(ncFile) # id of the ncfile handle itself, may not be needed in new version
             K
         end
-        lfpPath = lfppath(pos...; tet=l.tetrode[1])
+        if length(unique(l.tetrode)) == 1
+            tet = l.tetrode[1];
+        end
+        @infiltrate
+        lfpPath = lfppath(pos...; tet, write=true)
         @debug "path=$lfpPath"
         if isfile(lfpPath)
             rm(lfpPath)
         end
-        d=NcDim("sample", size(l,1))
         @infiltrate
+        d=NcDim("sample", size(l,1))
         varlist = Vector{NcVar}([])
         for k in names(l)
             var = NetCDF.NcVar(k, d)
@@ -75,13 +104,13 @@ module lfp
     end
 
     function split_lfp_by_tet(pos...; lfp=nothing, vars=nothing, kws...)
-        if lfp == nothing
+        if lfp === nothing
             lfp = load_lfp(pos...; vars=vars)
         end
-        if vars == nothing
+        if vars === nothing
             vars = names(lfp)
         end
-        original_nc = NetCDF.open(lfppath(pos...))
+        lfp = NetCDF.open(lfppath(pos...))
         lfp = groupby(lfp, :tetrode)
         @showprogress for l in lfp
             save_lfp(l, pos...; tet=l.tetrode[begin], vars=vars, kws...)
@@ -92,16 +121,15 @@ module lfp
     # Oscillation cycles
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-    function cyclepath(animal::String, day::Int, tetrode::Union{String,Int}; ext::String="csv")
-        csv = DrWatson.datadir("exp_raw", "visualize_raw_neural",
-                                  "$(animal)_$(day)_tet=$(tetrode)_cycles.$ext")
+    function cyclepath(animal::String, day::Int, tetrode::Union{String,Int}; type::String="csv")
+        DrWatson.datadir("exp_raw", "visualize_raw_neural",
+                                  "$(animal)_$(day)_tet=$(tetrode)_cycles.$type")
     end
     function save_cycles(cycles, pos...)
         cycles |> CSV.write(cyclepath(pos...))
     end
-    function load_cycles(pos...)
-        cycles = Load.load_table(pos...; tablepath=:cycles, type=type, 
-                            load_kws=load_kws, kws...)
+    function load_cycles(pos...; type="csv", kws...)
+        Load.load_table(pos...; tablepath=:cycles, type=type, kws...)
     end
 
 

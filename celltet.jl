@@ -28,7 +28,7 @@ module celltet
                                    "$(animal)_$(day)_cell$tag.$type")
     end
 
-    function cellpaths(animal::String, day::Int, tag::String=""; type="csv", kws...)
+    function cellpaths(animal::String, day::Int, tag::String=""; kws...)
         path = cellpath(animal, day, tag; kws...)
         if occursin("*", path)
             base, dir = basename(path), dirname(path)
@@ -41,11 +41,11 @@ module celltet
     end
 
 
-    function load_cells(pos...; kws...)
-        paths  = cellpaths(pos...; kws...)
+    function load_cells(pos...; type="arrow", kws...)
+        paths  = cellpaths(pos...; type, kws...)
         cells = DataFrame()
         @showprogress 0.1 "loading cell files" for path in paths
-            cell = CSV.read(path, DataFrame; Load.csvkws...)
+            cell = Load.load_table_at_path(path, type)
             cells = isempty(cells) ? cell : outerjoin(cells, cell, on=:unit, makeunique=true)
             Table.clean_duplicate_cols(cells)
         end

@@ -2,7 +2,7 @@ module ripples
 
     export load_ripples, save_ripples, ripplespath
     using DataFrames
-    import Load
+    import ..Load
     import DrWatson
     import CSV, Arrow
 
@@ -21,6 +21,7 @@ module ripples
         end
         ripples = Load.load_table(animal, day; tablepath=:ripples, type=type, load_kws=load_kws, kws...)
     end
+    load_ripples(;kws...) = load_ripples(Load.default_args...;kws...)
 
     function save_ripples(ripples::AbstractDataFrame, pos...; kws...)
         Load.save_table(ripples, pos...; tablepath=:ripples, kws...)

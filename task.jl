@@ -21,7 +21,7 @@ module task
         end
         task = Load.load_table(animal, day; tablepath=:task, type=type, load_kws=load_kws, kws...)
         if type == "csv"
-            transform!(task, :x => pxtocm => :x, :y => pxtocm => :y)
+            transform!(task, :x => Load.pxtocm => :x, :y => Load.pxtocm => :y)
         end
         return task
     end

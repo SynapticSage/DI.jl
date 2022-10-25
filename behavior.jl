@@ -30,7 +30,7 @@ module behavior
         if type == "csv"
             typemap = Dict(Int64=>Int16);
 
-            load_kws = (;strict=false, missingstring=["NaNNaNi", "NaNNaNi,", ""], types=typeFunc, typemap=typemap, csvkws...)
+            load_kws = (;strict=false, missingstring=["NaNNaNi", "NaNNaNi,", ""], types=typeFunc, typemap=typemap, Load.csvkws...)
         else
             load_kws = (;)
         end
