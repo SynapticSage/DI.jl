@@ -65,9 +65,11 @@ module superanimal
             time_vars  = Load.time_vars[source]
             time_vars  = time_vars isa Vector ? time_vars : [time_vars]
             datum = loadmethod("super", numsuperanim)
+            if source == "cells"
+                datum[!,:old_unit] = datum[!,:unit]
+            end
             groups = groupby(datum, [:animal,:day])
             for key in keys(time_stats)
-                @infiltrate
                 mt, nt, group = time_stats[key], 
                             unit_stats[NamedTuple(key)], 
                             groups[NamedTuple(key)]
@@ -81,9 +83,7 @@ module superanimal
                     group.unit .-= nt.unit_minimum      # center by behavior 0
                     group.unit .+= nt.unit_prev_maximum # add previous max time of prev dataset
                 end
-                @infiltrate
             end
-            @infiltrate
             savemethod(datum, "super$append", numsuperanim)
         end
     end
