@@ -24,6 +24,7 @@ module superanimal
                 savemethod(datum, "super", numsuperanim; type)
             end
         end
+        GC.gc()
     end
 
     """
@@ -66,7 +67,7 @@ module superanimal
             time_vars  = time_vars isa Vector ? time_vars : [time_vars]
             datum = loadmethod("super", numsuperanim)
             if source == "cells"
-                datum[!,:old_unit] = datum[!,:unit]
+                datum[!,:old_unit] = datum[:,:unit]
             end
             groups = groupby(datum, [:animal,:day])
             for key in keys(time_stats)
@@ -80,11 +81,20 @@ module superanimal
                     end
                 end
                 if stagger_units && :unit in propertynames(group)
+                    @info "unit found" source key
                     group.unit .-= nt.unit_minimum      # center by behavior 0
                     group.unit .+= nt.unit_prev_maximum # add previous max time of prev dataset
                 end
             end
+            if source == "cells"
+                @assert datum.old_unit != datum.unit
+            end
             savemethod(datum, "super$append", numsuperanim)
         end
+        GC.gc()
+        @info "be sure to run conversion to arrow if you change anything : tables_to_type()"
+    end
+
+    function fix_complex()
     end
 end

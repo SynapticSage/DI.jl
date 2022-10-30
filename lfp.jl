@@ -7,6 +7,12 @@ module lfp
     using DrWatson
     export lfppath, load_lfp, save_lfp, load_cycles, save_cycles, cyclepath
 
+    default_tetrodes = Dict(
+        "RY22" => 16, # good theta
+        "RY16" => 22,  # good theta 
+        "super" => :default
+        )
+
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # LFP
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -47,6 +53,10 @@ module lfp
     end
 
     function load_lfp(pos...; tet=nothing, vars=nothing, kws...)
+        if tet == :default
+            animal = pos[1]
+            tet = default_tetrodes[animal]
+        end
         if tet isa Vector
             lfp = [load_lfp(pos...; tet=t, vars=vars)
                    for t in tet]
@@ -72,6 +82,11 @@ module lfp
     end
 
     function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, kws...)
+        if tet == :default
+        @infiltrate
+            animal = pos[1]
+            tet = default_tetrodes[animal]
+        end
         function getkeys(lfpPath::String)
             ncFile = NetCDF.open(lfpPath)
             K = keys(ncFile.vars)
@@ -81,15 +96,15 @@ module lfp
         if length(unique(l.tetrode)) == 1
             tet = l.tetrode[1];
         end
-        @infiltrate
         lfpPath = lfppath(pos...; tet, write=true)
         @debug "path=$lfpPath"
         if isfile(lfpPath)
             rm(lfpPath)
         end
-        @infiltrate
+        #@infiltrate
         d=NcDim("sample", size(l,1))
         varlist = Vector{NcVar}([])
+        original_nc = NetCDF.open(lfppath(pos...))
         for k in names(l)
             var = NetCDF.NcVar(k, d)
             var.nctype=NetCDF.getNCType(eltype(original_nc[k]))
