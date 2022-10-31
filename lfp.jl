@@ -83,7 +83,7 @@ module lfp
 
     function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, kws...)
         if tet == :default
-        @infiltrate
+        
             animal = pos[1]
             tet = default_tetrodes[animal]
         end
