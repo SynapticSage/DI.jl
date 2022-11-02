@@ -9,7 +9,7 @@ module lfp
 
     default_tetrodes = Dict(
         "RY22" => 16, # good theta
-        "RY16" => 22,  # good theta 
+        "RY16" => 5,  # good theta 
         "super" => :default
         )
 
@@ -29,9 +29,9 @@ module lfp
         pathstring(ref,::Nothing) = DrWatson.datadir("exp_raw",
                                      "visualize_raw_neural", 
                                      "$(animal)_$(day)_rhythm$ref.$type")
-        pathstring(ref,tet::T where T<:Int) = DrWatson.datadir("exp_raw",
+        pathstring(ref,tet::T where T<:Union{Int,UInt8}) = DrWatson.datadir("exp_raw",
                               "visualize_raw_neural", 
-                              "$(animal)_$(day)_rhythm$(ref)_$(tet).$type")
+                              "$(animal)_$(day)_rhythm$(ref)_$(Int(tet)).$type")
         if ref === nothing
             ref = if isfile(pathstring("ref",tet))
                 ref = true;
@@ -107,9 +107,11 @@ module lfp
         original_nc = NetCDF.open(lfppath(pos...))
         for k in names(l)
             var = NetCDF.NcVar(k, d)
-            var.nctype=NetCDF.getNCType(eltype(original_nc[k]))
+            #var.nctype=NetCDF.getNCType(eltype(original_nc[k]))
+            var.nctype=NetCDF.getNCType(eltype(l[!,k]))
             push!(varlist,var)
         end
+        @infiltrate
         NetCDF.create(lfpPath, varlist)
         ncFile = NetCDF.open(lfpPath; mode=NC_WRITE)
         for (i,(key,value)) in enumerate(zip(names(l),eachcol(l)))
