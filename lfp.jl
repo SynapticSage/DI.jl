@@ -8,7 +8,9 @@ module lfp
     export lfppath, load_lfp, save_lfp, load_cycles, save_cycles, cyclepath
 
     default_tetrodes = Dict(
-        "RY22" => 16, # good theta
+        #"RY22" => 16, # lot of cells, theta = ass
+        #"RY22" => 7, # good theta
+        "RY22" => 18, # good theta
         "RY16" => 5,  # good theta 
         "super" => :default
         )
