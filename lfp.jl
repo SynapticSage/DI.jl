@@ -28,6 +28,7 @@ module lfp
     """
     function lfppath(animal::String, day::Int; tet=nothing, type::String="nc", 
                      ref=nothing, write=false)
+
         pathstring(ref,::Nothing) = DrWatson.datadir("exp_raw",
                                      "visualize_raw_neural", 
                                      "$(animal)_$(day)_rhythm$ref.$type")
@@ -54,13 +55,18 @@ module lfp
         end
     end
 
-    function load_lfp(pos...; tet=nothing, vars=nothing, kws...)
+    function load_lfp(pos...; tet=nothing, vars=nothing, 
+            subtract_earlytime=false, kws...)
         if tet == :default
             animal = pos[1]
             tet = default_tetrodes[animal]
+        elseif tet isa String
+            tets  = Load.load_tetrode(pos...)
+            tets  = groupby(tets,:area)[(;area=tet)]
+            tet  = collect(tets.tetrode)
         end
         if tet isa Vector
-            lfp = [load_lfp(pos...; tet=t, vars=vars)
+            lfp = [(println(t); load_lfp(pos...; tet=t, vars=vars))
                    for t in tet]
             lfp = vcat(lfp...)
         else
@@ -79,6 +85,9 @@ module lfp
                        for var in keyset)
             lfp = DataFrame(Dict(var => vec(lfp[var]) 
                                  for var in keyset))
+        end
+        if subtract_earlytime
+            lfp[!,:time] .-= Load.min_time_records[end]
         end
         return lfp
     end
@@ -113,7 +122,6 @@ module lfp
             var.nctype=NetCDF.getNCType(eltype(l[!,k]))
             push!(varlist,var)
         end
-        @infiltrate
         NetCDF.create(lfpPath, varlist)
         ncFile = NetCDF.open(lfpPath; mode=NC_WRITE)
         for (i,(key,value)) in enumerate(zip(names(l),eachcol(l)))
