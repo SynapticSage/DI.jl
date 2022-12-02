@@ -81,13 +81,15 @@ module celltet
     end
 
     function load_tetrode(animal, day)
-        cells = load_cells(animal,day)
+        cells = load_cells(animal,day)[!, Not([:csi, :meanrate, :propbursts, :tag])]
         groups = groupby(cells,"tetrode")
         tetrodes = DataFrame()
         for group = groups
             n_cells = size(group,1)
+            numspikes = sum(group.numspikes)
             row = DataFrame(group[1,:])
             row[!, :n_cells] .= n_cells;
+            row[!, :numspikes] .= numspikes;
             append!(tetrodes, row);
         end
         out = if "cell" in names(tetrodes)
