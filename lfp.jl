@@ -1,3 +1,8 @@
+"""
+    lfp
+
+Module for loading up and saving lfp related datasets 
+"""
 module lfp
     using DataFrames
     using NetCDF
