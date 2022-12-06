@@ -164,5 +164,27 @@ module lfp
         Load.load_table(pos...; tablepath=:cycles, type=type, kws...)
     end
 
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    # Coherence
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    export cohpath
+    function cohpath(animal::String, day::Int; type::String="arrow")
+        DrWatson.datadir("exp_raw", "visualize_raw_neural",
+                                  "$(animal)_$(day)_coh.$type")
+    end
+    export load_coh
+    function load_coh(pos...; type="arrow", kws...)
+        Load.load_table(pos...; tablepath=:coh, type, kws...)
+    end
+
+    export avgcohpath
+    function avgcohpath(animal::String, day::Int; type::String="arrow")
+        DrWatson.datadir("exp_raw", "visualize_raw_neural",
+                                  "$(animal)_$(day)_avgcoh.$type")
+    end
+    export load_avgcoh
+    function load_avgcoh(pos...; type="arrow", kws...)
+        Load.load_table(pos...; tablepath=:avgcoh, type, kws...)
+    end
 
 end
