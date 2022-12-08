@@ -186,5 +186,9 @@ module lfp
     function load_avgcoh(pos...; type="arrow", kws...)
         Load.load_table(pos...; tablepath=:avgcoh, type, kws...)
     end
+    export save_avgcoh
+    function save_avgcoh(pos...; type="arrow", kws...)
+        Load.save_table(pos...; tablepath=:avgcoh, type, kws...)
+    end
 
 end
