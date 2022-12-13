@@ -1,9 +1,10 @@
 module behavior
 
-    import ..Load
+    import ..Load, Utils
     using DrWatson
     using DataFrames
     using Infiltrator
+    using StatsBase
     export save_behavior, load_behavior, behaviorpath
 
     function behaviorpath(animal::String, day::Int, tag::String=""; type::String=Load.load_default)
@@ -50,11 +51,72 @@ module behavior
             end
             @assert ("x" ∈ names(beh)) "Fuck"
         end
+        postprocess!(beh)
         return beh
     end
 
     function save_behavior(behavior::AbstractDataFrame, pos...; kws...)
         Load.save_table(behavior, pos...; tablepath=:behavior, kws...)
+    end
+
+    function postprocess!(beh::DataFrame)::Nothing
+        register_epoch_homewell!(beh)
+        annotate_ha_traj!(beh)
+        nothing
+    end
+
+    function determine_epoch_homewell(beh::DataFrame)::DataFrame
+        B = groupby(subset(beh, 
+                           :startWell=>w->w .!= -1, :stopWell=>w->w .!=-1),
+                    :epoch)
+        hws = combine(B, :stopWell=>mode, :startWell=>mode)
+        @assert(all(hws.stopWell_mode .== hws.startWell_mode))
+        hws.homewell = hws.stopWell_mode
+        hws[!, Not([:startWell_mode, :stopWell_mode])]
+    end
+    function register_epoch_homewell!(beh::DataFrame)::DataFrame
+        hws = determine_epoch_homewell(beh)
+        Utils.filtreg.register(hws, beh; on="epoch", transfer=["homewell"])
+        beh
+    end
+
+    function annotate_ha_traj!(beh::DataFrame)::Nothing
+        beh[!,:ha_traj] = Vector{Union{String,Missing}}(missing, size(beh,1))
+        inds = transform(beh, 
+            :block => (b->(!).(isnan.(b)) .&& b .!= -1) => :out).out
+        B = groupby(beh[inds,:], [:epoch, :block])
+        for block in B
+
+            home_trials = block.stopWell .== block.homewell
+            arena_trials = (!).(home_trials)
+
+            #@infiltrate length(unique(block.traj)) > 4
+            if any(home_trials)
+                uareantraj = sort(unique(block.traj[home_trials]))
+                hometraj  = Utils.searchsortednearest.([uareantraj], 
+                                                       block.traj[home_trials])
+            else
+                hometraj = []
+            end
+
+            if any(arena_trials)
+                uareantraj = sort(unique(block.traj[arena_trials]))
+                arenatraj  = Utils.searchsortednearest.([uareantraj], 
+                                                       block.traj[arena_trials])
+            else
+                arenatraj = []
+            end
+
+            #@info "block" unique(block.traj) unique(arenatraj) unique(hometraj)
+
+            home_labels  = isempty(hometraj)   ? Vector{String}() : "h" .* string.(hometraj)
+            arena_labels = isempty(arenatraj)  ? Vector{String}() : "a" .* string.(arenatraj)
+
+            block.ha_traj[home_trials]  .= home_labels
+            block.ha_traj[arena_trials] .= arena_labels
+        end
+        beh[inds,:ha_traj] = sort(combine(B,identity), [:epoch,:time]).ha_traj
+        nothing
     end
 
 end
