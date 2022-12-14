@@ -61,7 +61,7 @@ module behavior
 
     function postprocess!(beh::DataFrame)::Nothing
         register_epoch_homewell!(beh)
-        annotate_ha_traj!(beh)
+        annotate_hatraj!(beh)
         nothing
     end
 
@@ -80,10 +80,13 @@ module behavior
         beh
     end
 
-    function annotate_ha_traj!(beh::DataFrame)::Nothing
-        beh[!,:ha_traj] = Vector{Union{String,Missing}}(missing, size(beh,1))
+    function annotate_hatraj!(beh::DataFrame)::Nothing
+        beh[!,:hatraj]    = Vector{Union{String,Missing}}(missing, size(beh,1))
+        beh[!,:hatrajnum] = Vector{Union{Int8,Missing}}(missing, size(beh,1))
+
         inds = transform(beh, 
             :block => (b->(!).(isnan.(b)) .&& b .!= -1) => :out).out
+
         B = groupby(beh[inds,:], [:epoch, :block])
         for block in B
 
@@ -112,10 +115,15 @@ module behavior
             home_labels  = isempty(hometraj)   ? Vector{String}() : "h" .* string.(hometraj)
             arena_labels = isempty(arenatraj)  ? Vector{String}() : "a" .* string.(arenatraj)
 
-            block.ha_traj[home_trials]  .= home_labels
-            block.ha_traj[arena_trials] .= arena_labels
+            block.hatraj[home_trials]  .= home_labels
+            block.hatraj[arena_trials] .= arena_labels
         end
-        beh[inds,:ha_traj] = sort(combine(B,identity), [:epoch,:time]).ha_traj
+
+        beh[inds,:hatraj] = sort(combine(B,identity), [:epoch,:time]).hatraj
+
+        beh[inds,:hatrajnum] = Utils.searchsortednearest.(
+                        [sort(unique(beh.hatraj[inds]))], beh.hatraj[inds])
+
         nothing
     end
 
