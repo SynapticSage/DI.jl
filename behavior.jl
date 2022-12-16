@@ -66,7 +66,7 @@ module behavior
     end
 
     function determine_epoch_homewell(beh::DataFrame)::DataFrame
-        B = groupby(subset(beh, 
+        B = groupby(subset(dropmissing(beh,[:startWell,:stopWell]),
                            :startWell=>w->w .!= -1, :stopWell=>w->w .!=-1),
                     :epoch)
         hws = combine(B, :stopWell=>mode, :startWell=>mode)
@@ -85,7 +85,11 @@ module behavior
         beh[!,:hatrajnum] = Vector{Union{Int8,Missing}}(missing, size(beh,1))
 
         inds = transform(beh, 
-            :block => (b->(!).(isnan.(b)) .&& b .!= -1) => :out).out
+                         :block => (b->
+                                    (!).(ismissing.(b)) .&& 
+                                    ((!).(isnan.(b))) .&& 
+                                    (b .!= -1))
+                                     => :out).out
 
         B = groupby(beh[inds,:], [:epoch, :block])
         for block in B

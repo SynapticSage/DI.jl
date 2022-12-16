@@ -75,7 +75,7 @@ module lfp
                    for t in tet]
             lfp = vcat(lfp...)
         else
-            lfpPath = lfppath(pos...; tet=tet)
+            lfpPath = lfppath(pos...; tet=tet, kws...)
             @info lfpPath
             v = NetCDF.open(lfpPath)
             if "Var1" in keys(v.vars)
