@@ -53,7 +53,7 @@ module lfp
                 end
             end
         end
-        if ref
+        if ref !== nothing
             pathstring("ref",tet)
         else
             pathstring("",tet)
