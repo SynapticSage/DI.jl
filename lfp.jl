@@ -20,6 +20,14 @@ module lfp
         "super" => :default
         )
 
+    ca1ref_tetrodes = Dict(
+        #"RY22" => 16, # lot of cells, theta = ass
+        #"RY22" => 7, # good theta
+        "RY22" => 20, # good theta
+        "RY16" => 17,  # good theta 
+        "super" => :ca1ref
+        )
+
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # LFP
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -65,6 +73,9 @@ module lfp
         if tet == :default
             animal = pos[1]
             tet = default_tetrodes[animal]
+        elseif tet == :ca1ref
+            animal = pos[1]
+            tet = ca1ref_tetrodes[animal]
         elseif tet isa String
             tets  = Load.load_tetrode(pos...)
             tets  = groupby(tets,:area)[(;area=tet)]
@@ -99,9 +110,11 @@ module lfp
 
     function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, kws...)
         if tet == :default
-        
             animal = pos[1]
             tet = default_tetrodes[animal]
+        elseif tet == :ca1ref
+            animal = pos[1]
+            tet = ca1ref_tetrodes[animal]
         end
         function getkeys(lfpPath::String)
             ncFile = NetCDF.open(lfpPath)
