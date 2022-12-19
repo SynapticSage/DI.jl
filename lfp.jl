@@ -32,7 +32,7 @@ module lfp
     Obtains path to lfp file
     """
     function lfppath(animal::String, day::Int; tet=nothing, type::String="nc", 
-                     ref=nothing, write=false)
+                     ref=nothing, write=false, kws...)
 
         pathstring(ref,::Nothing) = DrWatson.datadir("exp_raw",
                                      "visualize_raw_neural", 
@@ -53,7 +53,7 @@ module lfp
                 end
             end
         end
-        if ref !== nothing
+        if ref !== nothing && ref !== false
             pathstring("ref",tet)
         else
             pathstring("",tet)
@@ -112,15 +112,15 @@ module lfp
         if length(unique(l.tetrode)) == 1
             tet = l.tetrode[1];
         end
-        lfpPath = lfppath(pos...; tet, write=true)
-        @debug "path=$lfpPath"
+        lfpPath = lfppath(pos...; kws..., tet, write=true)
+        @info "saving" lfpPath
         if isfile(lfpPath)
             rm(lfpPath)
         end
         #@infiltrate
         d=NcDim("sample", size(l,1))
         varlist = Vector{NcVar}([])
-        original_nc = NetCDF.open(lfppath(pos...))
+        original_nc = NetCDF.open(lfppath(pos...;kws...))
         for k in names(l)
             var = NetCDF.NcVar(k, d)
             #var.nctype=NetCDF.getNCType(eltype(original_nc[k]))
@@ -135,14 +135,20 @@ module lfp
         end
     end
 
-    function split_lfp_by_tet(pos...; lfp=nothing, vars=nothing, kws...)
+    """
+        split_lfp_by_tet(pos...; lfp=nothing, vars=nothing, kws...)
+
+    split up a dataframe of tetrodes into different files
+    """
+    function split_lfp_by_tet(pos...; lfp::Union{DataFrame,Nothing}=nothing, 
+                              vars=nothing, kws...)
         if lfp === nothing
             lfp = load_lfp(pos...; vars=vars)
         end
         if vars === nothing
             vars = names(lfp)
         end
-        lfp = NetCDF.open(lfppath(pos...))
+        #lfp = NetCDF.open(lfppath(pos...;kws...))
         lfp = groupby(lfp, :tetrode)
         @showprogress for l in lfp
             save_lfp(l, pos...; tet=l.tetrode[begin], vars=vars, kws...)
