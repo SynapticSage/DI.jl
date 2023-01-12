@@ -13,6 +13,9 @@ module video
     using FixedPointNumbers
     using Colors
     using Statistics
+    import VideoIO
+
+    #getindexmethod = :const # searchsortednearest | const | constalignnearest
 
     function __init__()
         mat"addpath('/home/ryoung/Code/pipeline/TrodesToMatlab')"
@@ -82,7 +85,7 @@ module video
         @info "opening $file" "readCameraModuleTimeStamps('$file')"
         ts = mat"readCameraModuleTimeStamps($file)"
         #ts = mat"readCameraModuleTimeStamps('/media/ryoung/GenuDrive/RY16_direct/videos/RY16timestamp36-01.dat')"
-        center_by_loadmintime ? ts .- Load.min_time_records[end] : ts
+        center_by_loadmintime ? ts .- (isempty(Load.min_time_records) ? 0 : Load.min_time_records[end]) : ts
     end
     function load_videots(animal::String, day::Int, epoch::Int; 
             center_by_loadmintime::Bool=true)
@@ -117,6 +120,7 @@ module video
         vid::VideoIO.VideoReader
         # Video statistics
         totaltime::Float64
+        totaltimestamptime::Float64
         totalframe::Int32
         framespertime::Float64
         # A record of behavior time of the frames and distance of the behavior
@@ -125,6 +129,8 @@ module video
         behaviorminusvidtime::Float64
         # Where we are in the video
         currvidtime::Float64
+        # Search Table
+        searchtable::DataFrame
         # Pixel space cropping
         cropx::BitVector
         cropy::BitVector
@@ -132,21 +138,26 @@ module video
         xaxis::Vector{Float64}
         yaxis::Vector{Float64}
     end
-    function getVideObj(vidpath, vid, ts; cropx=nothing, cropy=nothing,
+    function getVideObj(vidpath, vid, timestamps; cropx=nothing, cropy=nothing,
         animal=nothing, day=nothing, epoch=nothing)
         cropx, cropy, xaxis, yaxis = computeimagecrop(vid;cropx,cropy,animal,day,epoch)
         # Basic video statistics
-        totalframe = length(ts)
+        totalframe = length(timestamps)
         totaltime = VideoIO.get_duration(vidpath) 
-        vidtime = gettime(vid)
-        framespertime = totalframe/totaltime
+        totaltimestamptime = diff(collect(extrema(timestamps)))[1]
+        currentvideotime = gettime(vid) # relative time into video
+        framespertime = totalframe/totaltime # how many frames to move per time
+        # Setup a searchtable
+        searchtable = DataFrame([collect(1:totalframe), collect(LinRange(0,totaltime,totalframe)), timestamps], 
+                                [:frames, :linearts, :timestamp])
         # Relatinoship to behavior times
-        vididx = Int32(round(vidtime*framespertime)) + 1
-        behaviorminusvidtime = ts[vididx] - vidtime
+        vididx = max(Int32(round(currentvideotime*framespertime)), 1)
+        behaviorminusvidtime = timestamps[vididx] - currentvideotime # the time stamp file minus the vidtime
         # Create the video array object (a video object that can be indexed like an array)
-        VideoObj(vid, totaltime, totalframe, totalframe/totaltime,
-                   ts, behaviorminusvidtime,
-                   vidtime,
+        VideoObj(vid, totaltime, totaltimestamptime, 
+                 totalframe, totalframe/totaltime,
+                   timestamps, behaviorminusvidtime,
+                   currentvideotime, searchtable,
                    cropx, cropy,
                    xaxis, yaxis
                   )
@@ -193,21 +204,37 @@ module video
     function timetoind(vid::VideoObj, t::Float64)::Int32
         Int32(round(t/vid.totaltime * vid.totalframe))
     end
-    function Base.getindex(vid::VideoObj, i::Int)
+    function VideoIO.gettime(vid::VideoObj)
+        VideoIO.gettime(vid.vid) + vid.behaviorminusvidtime
+    end
+    function VideoIO.gettime(vid::VideoObj, i::Int)
         t = indtotime(vid, i)
         seek(vid.vid, t)
-        img = read(vid.vid)
         updatetime!(vid)
+        gettime(vid.vid) + vid.behaviorminusvidtime
+    end
+    function VideoIO.gettime(vid::VideoObj, t::T where T <: Union{Float32, Float64})
+        seek(vid.vid, t)
+        updatetime!(vid)
+        gettime(vid.vid) + vid.behaviorminusvidtime
+    end
+    function Base.getindex(vid::VideoObj, i::Int)
+        t = indtotime(vid, i) # translate index of video to time of video
+        seek(vid.vid, t)  # seek to time
+        img = read(vid.vid) # get image
+        updatetime!(vid) # update time
         DimArray(img[vid.cropx, vid.cropy], (X(vid.xaxis), Y(vid.yaxis)))
     end
     function Base.getindex(vid::VideoObj, t::Float64)
-        seek(vid.vid, t)
+        search = vid.searchtable[Utils.searchsortednearest(vid.searchtable.timestamp, t),:]
+        seek(vid.vid, search.linearts)
         img = read(vid.vid)
         updatetime!(vid)
         DimArray(Array(img[vid.cropx,vid.cropy]), (X(vid.xaxis), Y(vid.yaxis)))
     end
     function Base.getindex(vid::VideoObj; time::Union{Float64,Float32,Int})
-        vidtime = time - vid.behaviorminusvidtime
+        #vidtime = time - vid.behaviorminusvidtime
+        vidtime = Float64(time)
         vid[vidtime]
     end
     Base.close(vid::VideoObj) = close(vid.vid)
@@ -245,6 +272,18 @@ module video
         t = mean([vids.starts[epoch] , vids.stops[epoch]])
         vids.vids[epoch][time=t]
     end
+    function VideoIO.gettime(vids::VideoCollection, t::T where T <: Union{Float32,Float64})
+        v = findfirst(t .>= vids.starts .&& t .<= vids.stops)
+        v === nothing ? VideoIO.gettime(vids.vids[1]) : VideoIO.gettime(vids.vids[v], t)
+    end
+    function VideoIO.gettime(vids::VideoCollection, T::Vector{<:Union{Float32,Float64}})
+        [VideoIO.gettime(vids, t) for t in T]
+    end
+    function VideoIO.gettime(vids::VideoCollection; epoch::Int)::DimArray
+        t = mean([vids.starts[epoch] , vids.stops[epoch]])
+        @error "not implemented"
+        vids.vids[epoch][time=t]
+    end
     function Base.close(vids::VideoCollection)
         [close(vid) for vid in vids.vids]
         nothing
@@ -278,8 +317,6 @@ module video
     # ============================================================
     # ============================================================
     # ============================================================
-
-
     """
         get_path
 
