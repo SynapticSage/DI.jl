@@ -105,13 +105,11 @@ module behavior
 
             # Assign incorrect block labels
             if !isempty(correct_block.time)
-                inds = Utils.searchsortedprevious.([correct_block.time], incorrect_block.time)
-                incorrect_block.hatraj = "*" .* correct_block[inds,:hatraj]
+                closest_cor_samp = Utils.searchsortedprevious.([correct_block.time], incorrect_block.time)
+                incorrect_block.hatraj = "*" .* correct_block[closest_cor_samp,:hatraj]
             elseif isempty(correct_block) && !isempty(incorrect_block)
                 incorrect_block = _assign_labels(incorrect_block)
                 incorrect_block.hatraj = "*" .* incorrect_block.hatraj
-            else
-                inds = []
             end
             
             # Assign values back to block
