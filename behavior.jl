@@ -18,7 +18,9 @@ module behavior
     end
 
     function load_behavior(animal::String, day::Int, tag::String="";
+
         type::String=Load.load_default, kws...)
+
         function typeFunc(type, name)
             if occursin("Vec", string(name))
                 type = ComplexF32;
@@ -74,6 +76,7 @@ module behavior
         hws.homewell = hws.stopWell_mode
         hws[!, Not([:startWell_mode, :stopWell_mode])]
     end
+
     function register_epoch_homewell!(beh::DataFrame)::DataFrame
         hws = determine_epoch_homewell(beh)
         Utils.filtreg.register(hws, beh; on="epoch", transfer=["homewell"])
@@ -94,33 +97,29 @@ module behavior
         B = groupby(beh[inds,:], [:epoch, :block])
         for block in B
 
-            home_trials = block.stopWell .== block.homewell
-            arena_trials = (!).(home_trials)
+            correct_trials = block.correct .== 1
+            correct_block_traj = block[correct_trials, :]
+            incorrect_block = block[(!).(correct_trials), :]
 
-            #@infiltrate length(unique(block.traj)) > 4
-            if any(home_trials)
-                uareantraj = sort(unique(block.traj[home_trials]))
-                hometraj  = Utils.searchsortednearest.([uareantraj], 
-                                                       block.traj[home_trials])
+            correct_block = _assign_labels(correct_block_traj)
+
+            # Assign incorrect block labels
+            if !isempty(correct_block.time)
+                inds = Utils.searchsortedprevious.([correct_block.time], incorrect_block.time)
+                incorrect_block.hatraj = "*" .* correct_block[inds,:hatraj]
+            elseif isempty(correct_block) && !isempty(incorrect_block)
+                incorrect_block = _assign_labels(incorrect_block)
+                incorrect_block.hatraj = "*" .* incorrect_block.hatraj
             else
-                hometraj = []
+                inds = []
+            end
+            
+            # Assign values back to block
+            if !isempty(correct_block) || !isempty(incorrect_block)
+                @infiltrate
+                block[:,:] .= sort(vcat(correct_block, incorrect_block), :time)
             end
 
-            if any(arena_trials)
-                uareantraj = sort(unique(block.traj[arena_trials]))
-                arenatraj  = Utils.searchsortednearest.([uareantraj], 
-                                                       block.traj[arena_trials])
-            else
-                arenatraj = []
-            end
-
-            #@info "block" unique(block.traj) unique(arenatraj) unique(hometraj)
-
-            home_labels  = isempty(hometraj)   ? Vector{String}() : "h" .* string.(hometraj)
-            arena_labels = isempty(arenatraj)  ? Vector{String}() : "a" .* string.(arenatraj)
-
-            block.hatraj[home_trials]  .= home_labels
-            block.hatraj[arena_trials] .= arena_labels
         end
 
         beh[inds,:hatraj] = sort(combine(B,identity), [:epoch,:time]).hatraj
@@ -129,6 +128,38 @@ module behavior
                         [sort(unique(beh.hatraj[inds]))], beh.hatraj[inds])
 
         nothing
+    end
+
+    function _assign_labels(block)
+        home_trials  = block.stopWell .== block.homewell
+        arena_trials = (!).(home_trials)
+
+        if any(home_trials)
+            uareantraj = sort(unique(block.traj[home_trials]))
+            hometraj  = Utils.searchsortednearest.([uareantraj], 
+                                                   block.traj[home_trials])
+        else
+            hometraj = []
+        end
+
+        if any(arena_trials)
+            uareantraj = sort(unique(block.traj[arena_trials]))
+            arenatraj  = Utils.searchsortednearest.([uareantraj], 
+                                                   block.traj[arena_trials])
+        else
+            arenatraj = []
+        end
+
+        #@info "block" unique(correct_block_traj) unique(arenatraj) unique(hometraj)
+
+        home_labels  = isempty(hometraj)   ? Vector{String}() : "h" .* string.(hometraj)
+        arena_labels = isempty(arenatraj)  ? Vector{String}() : "a" .* string.(arenatraj)
+
+        # Assign incorrect block labels
+        block.hatraj[home_trials]  .= home_labels
+        block.hatraj[arena_trials] .= arena_labels
+
+        return block
     end
 
 end
