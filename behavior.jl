@@ -114,7 +114,6 @@ module behavior
             
             # Assign values back to block
             if !isempty(correct_block) || !isempty(incorrect_block)
-                @infiltrate
                 block[:,:] .= sort(vcat(correct_block, incorrect_block), :time)
             end
 
@@ -147,8 +146,6 @@ module behavior
         else
             arenatraj = []
         end
-
-        #@info "block" unique(correct_block_traj) unique(arenatraj) unique(hometraj)
 
         home_labels  = isempty(hometraj)   ? Vector{String}() : "h" .* string.(hometraj)
         arena_labels = isempty(arenatraj)  ? Vector{String}() : "a" .* string.(arenatraj)
