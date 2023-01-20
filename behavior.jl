@@ -5,6 +5,7 @@ module behavior
     using DataFrames
     using Infiltrator
     using StatsBase
+    using ImageFiltering
     export save_behavior, load_behavior, behaviorpath
 
     function behaviorpath(animal::String, day::Int, tag::String=""; type::String=Load.load_default)
@@ -60,10 +61,21 @@ module behavior
     function save_behavior(behavior::AbstractDataFrame, pos...; kws...)
         Load.save_table(behavior, pos...; tablepath=:behavior, kws...)
     end
+    
+
+    # ----------------------------------------------------------------------
+    # ADDITIONAL POST-PROCESSING FUNCTIONS
+    # 
+    # It's arguable these steps should happen before the data is imported to
+    # julia (my preprocessing pipeline is in matlab, because it uses our labs code base). 
+    # But for now the plan is to use these post-processing bandages.
+    # ----------------------------------------------------------------------
 
     function postprocess!(beh::DataFrame)::Nothing
         register_epoch_homewell!(beh)
         annotate_hatraj!(beh)
+        annotate_poke!(beh)
+        munge_clean_velocity!(beh)
         nothing
     end
 
@@ -155,6 +167,47 @@ module behavior
         block.hatraj[arena_trials] .= arena_labels
 
         return block
+    end
+
+
+    """
+        clean_velocity
+
+    Cleans velocity and adds some additional fields
+
+
+    # TODO
+    `NaN` cleaning ... by eye it appears much of the time NaN velocity
+    is 0 velocity. It may be the case that I should be using a more sophisticated
+    NaN fill procedure. e.g. ffill/bfill
+
+    """
+    function munge_clean_velocity!(beh)
+        R = real.(beh.velVec)
+        I = imag.(beh.velVec)
+        R[isnan.(R)] .= 0
+        I[isnan.(I)] .= 0
+        beh[!,:velVec] = R .+ (I)im
+
+        ker = Kernel.gaussian((2,))
+        Plots.unicodeplots()
+        Plots.plot(ker, label="smoothing kernel", 
+                        title="length of time: $(round(length(ker)/30,sigdigits=2)) sec")
+        beh[!,:smoothvel] = imfilter(beh.velVecClean, ker)
+        @info "moving defined as smoothvel > 4cm/s || dio poke"
+        beh[!,:moving] = abs.(beh.smoothvel) .> 4 .|| (beh.poke .== 0)
+        nothing
+    end
+
+    function annotate_poke!(beh::DataFrame)::Nothing
+        pn = sort([name for name in names(beh) if occursin("poke_", name)])
+        B = dropmissing(beh, pn)
+        poke_matrix = replace(Matrix(B[!, pn]), NaN=>0)
+        poke_matrix = BitMatrix(poke_matrix)
+        pn = replace([findfirst(row) for row in eachrow(poke_matrix)],nothing=>0)
+        locs = accumulate(||, [(!).(ismissing.(beh[!,col])) for col in pn])
+        beh[locs,:poke] = pn
+        nothing
     end
 
 end
