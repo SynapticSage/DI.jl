@@ -139,6 +139,11 @@ module behavior
         nothing
     end
 
+    """
+        _assign_labels
+
+    assigns `hatraj` and `hatrajnum` to a block of behavior
+    """
     function _assign_labels(block)
         home_trials  = block.stopWell .== block.homewell
         arena_trials = (!).(home_trials)
@@ -190,23 +195,31 @@ module behavior
         beh[!,:velVec] = R .+ (I)im
 
         ker = Kernel.gaussian((2,))
-        Plots.unicodeplots()
-        Plots.plot(ker, label="smoothing kernel", 
-                        title="length of time: $(round(length(ker)/30,sigdigits=2)) sec")
-        beh[!,:smoothvel] = imfilter(beh.velVecClean, ker)
-        @info "moving defined as smoothvel > 4cm/s || dio poke"
-        beh[!,:moving] = abs.(beh.smoothvel) .> 4 .|| (beh.poke .== 0)
+        #Plots.unicodeplots()
+        #Plots.plot(ker, label="smoothing kernel", 
+        #                title="length of time: $(round(length(ker)/30,sigdigits=2)) sec")
+        beh[!,:smoothvel] = imfilter(beh.velVec, ker)
+        @info "NOT moving defined as smoothvel < 4cm/s || dio poke"
+        stillness = abs.(beh.smoothvel) .< 4 .|| (beh.poke .> 0)
+        beh[!,:moving] = (!).(stillness)
         nothing
     end
 
+    """
+        annotate_poke!
+
+    adds a `poke` field describing which DIO is poked using the individual
+    poke_X fields
+    """
     function annotate_poke!(beh::DataFrame)::Nothing
         pn = sort([name for name in names(beh) if occursin("poke_", name)])
-        B = dropmissing(beh, pn)
-        poke_matrix = replace(Matrix(B[!, pn]), NaN=>0)
-        poke_matrix = BitMatrix(poke_matrix)
+        poke_matrix = replace(Matrix(beh[!, pn]), NaN=>0)
+        valid = Utils.squeeze(any((!).(Matrix(ismissing.(beh[!, pn]))), dims=2))
+        poke_matrix = BitMatrix(poke_matrix[valid,1:end])
         pn = replace([findfirst(row) for row in eachrow(poke_matrix)],nothing=>0)
-        locs = accumulate(||, [(!).(ismissing.(beh[!,col])) for col in pn])
-        beh[locs,:poke] = pn
+        #locs = accumulate(|, [(!).(ismissing.(beh[!,col])) for col in pn])
+        beh[!,:poke] = Vector{Union{Missing,Int8}}(missing, size(beh,1))
+        beh[valid, :poke] = pn
         nothing
     end
 
