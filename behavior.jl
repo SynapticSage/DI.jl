@@ -98,6 +98,7 @@ module behavior
     function annotate_hatraj!(beh::DataFrame)::Nothing
         beh[!,:hatraj]    = Vector{Union{String,Missing}}(missing, size(beh,1))
         beh[!,:hatrajnum] = Vector{Union{Int8,Missing}}(missing, size(beh,1))
+        beh[!,:ha] = Vector{Union{Char,Missing}}(missing, size(beh,1))
 
         inds = transform(beh, 
                          :block => (b->
@@ -128,10 +129,13 @@ module behavior
             if !isempty(correct_block) || !isempty(incorrect_block)
                 block[:,:] .= sort(vcat(correct_block, incorrect_block), :time)
             end
+            #@infiltrate length(unique(block.ha)) > 1
 
         end
 
-        beh[inds,:hatraj] = sort(combine(B,identity), [:epoch,:time]).hatraj
+        B = sort(combine(B,identity), [:epoch,:time])
+        beh[inds,:hatraj] = B.hatraj
+        beh[inds,:ha] = B.ha
 
         beh[inds,:hatrajnum] = Utils.searchsortednearest.(
                         [sort(unique(beh.hatraj[inds]))], beh.hatraj[inds])
@@ -164,12 +168,15 @@ module behavior
             arenatraj = []
         end
 
-        home_labels  = isempty(hometraj)   ? Vector{String}() : "h" .* string.(hometraj)
-        arena_labels = isempty(arenatraj)  ? Vector{String}() : "a" .* string.(arenatraj)
+        home_labels  = isempty(hometraj)   ? Vector{String}() : "H" .* string.(hometraj)
+        arena_labels = isempty(arenatraj)  ? Vector{String}() : "A" .* string.(arenatraj)
 
         # Assign incorrect block labels
         block.hatraj[home_trials]  .= home_labels
         block.hatraj[arena_trials] .= arena_labels
+        block.ha[home_trials]  .= 'H'
+        block.ha[arena_trials] .= 'A'
+        #@infiltrate length(home_trials) > 1
 
         return block
     end
