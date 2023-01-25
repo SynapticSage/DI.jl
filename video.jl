@@ -82,11 +82,14 @@ module video
     end
 
     function load_videots(file::String; 
-            correct_behavior_ts_offset::Union{Float64,Float32}=0,
+            initial_behavior_time::Union{Float64,Float32,Nothing}=nothing,
             center_by_loadmintime::Bool=true)
         @info "opening $file" "readCameraModuleTimeStamps('$file')"
         ts = mat"readCameraModuleTimeStamps($file)"
-        ts += correct_behavior_ts_offset
+        if initial_behavior_time !== nothing
+            δ = initial_behavior_time - first(ts)
+            ts = ts .+ δ
+        end
         centering_time = (isempty(Load.min_time_records) ? 0 : Load.min_time_records[end])
         center_by_loadmintime ? (ts .- centering_time) : ts 
     end
@@ -94,8 +97,13 @@ module video
             correct_behavior_ts_offset::Bool=true,
             center_by_loadmintime::Bool=true)
         file = Load.video.getTsFiles(animal,day)[epoch]
+        if correct_behavior_ts_offset
+            initial_behavior_time = firstbehaviortime(animal,day,epoch)
+        else
+            initial_behavior_time = 0
+        end
         @info  "file" file
-        load_videots(file; center_by_loadmintime)
+        load_videots(file; center_by_loadmintime, initial_behavior_time)
     end
     function load_video(file::String)
         stream    = VideoIO.open(file)
