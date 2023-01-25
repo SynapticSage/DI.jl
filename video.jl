@@ -23,20 +23,20 @@ module video
 
     videoFolders=Dict(
                       "RY16"=>"/media/ryoung/GenuDrive/RY16_direct/videos/",
-                      "RY22"=>"/media/ryoung/Ark/RY22_direct/videos/",
+                      "RY22"=>"/media/ryoung/Ark/RY22_direct/videos/"
                      )
 
     function getVideoFiles(animal::String, day::Int)::Vector
         # Get the list of files for the epoch, videoTS files
         # Load up the collection of video ts files
-        globstr = "RY16video$day-*.mp4"
+        globstr = "$(animal)video$day-*.mp4"
         glob(globstr, videoFolders[animal])
 
     end
     function getTsFiles(animal::String, day::Int)::Vector
         # Get the list of files for the epoch, vidoes and videoTS files
         # Load up the collection of video ts files
-        globstr = "RY16timestamp$day-*.dat"
+        globstr = "$(animal)timestamp$day-*.dat"
         glob(globstr, videoFolders[animal])
     end
     function ts2videots(animal::String, day::Int, timestamp::Real)
@@ -81,15 +81,19 @@ module video
         img
     end
 
-    function load_videots(file::String; center_by_loadmintime::Bool=true)
+    function load_videots(file::String; 
+            correct_behavior_ts_offset::Union{Float64,Float32}=0,
+            center_by_loadmintime::Bool=true)
         @info "opening $file" "readCameraModuleTimeStamps('$file')"
         ts = mat"readCameraModuleTimeStamps($file)"
-        #ts = mat"readCameraModuleTimeStamps('/media/ryoung/GenuDrive/RY16_direct/videos/RY16timestamp36-01.dat')"
-        center_by_loadmintime ? ts .- (isempty(Load.min_time_records) ? 0 : Load.min_time_records[end]) : ts
+        ts += correct_behavior_ts_offset
+        centering_time = (isempty(Load.min_time_records) ? 0 : Load.min_time_records[end])
+        center_by_loadmintime ? (ts .- centering_time) : ts 
     end
     function load_videots(animal::String, day::Int, epoch::Int; 
+            correct_behavior_ts_offset::Bool=true,
             center_by_loadmintime::Bool=true)
-        file = Load.video.getTsFiles("RY16",day)[epoch]
+        file = Load.video.getTsFiles(animal,day)[epoch]
         @info  "file" file
         load_videots(file; center_by_loadmintime)
     end
@@ -193,10 +197,27 @@ module video
 
         cropx, cropy, xaxis, yaxis
     end
+    """
+        taskboundaries(animal::String, day::Int, epoch::Int)
+    return the boundaries of the task
+    """
     function taskboundaries(animal::String, day::Int, epoch::Int)
         task = Load.task.load_task(animal, day)
         task = @subset(task, :epoch .== epoch, :name .== "boundary")
         extrema(task.x), extrema(task.y)
+    end
+    """
+        firstbehaviorepoch(animal::String, day::Int)
+    return the first behavioral epoch
+    """
+    function firstbehaviorepoch(animal::String, day::Int)
+        task = subset(Load.task.load_task(animal, day), :type => t -> t .== "run")
+        minimum(task.epoch)
+    end
+    function firstbehaviortime(animal::String, day::Int, epoch::Union{Int,Nothing}=nothing)
+        epoch = epoch === nothing ? firstbehaviorepoch(animal, day) : epoch
+        first(subset(Load.load_behavior(animal, day), 
+                     :epoch=>e->e.==epoch).time)
     end
     function indtotime(vid::VideoObj, i::Int)::Float64
         @fastmath i/vid.totalframe * vid.totaltime
@@ -293,19 +314,22 @@ module video
                  (X(vid.xaxis), Y(vid.yaxis)))
     end
 
-    function load_videoobj(animal::String, day::Int, epoch::Int)::VideoObj
+    function load_videoobj(animal::String, day::Int, epoch::Int; 
+            vidkws=(;), tskws=(;))::VideoObj
         file = video.getVideoFiles(animal, day)
+        isempty(file) ? @error("load_videoobj :: file list is empty") : nothing
         file = file[epoch]
-        vid = load_video(file)
-        ts = load_videots(animal, day, epoch)
+        vid  = load_video(file; vidkws...)
+        ts   = load_videots(animal, day, epoch; tskws...)
         getVideObj(file, vid, ts; animal, day, epoch)
     end
-    function load_videocollection(animal::String, day::Int)::VideoCollection
+    function load_videocollection(animal::String, day::Int; 
+            vidkws=(;), tskws=(;))::VideoCollection
         task = Load.task.load_task(animal, day)
         epochs = unique(task.epoch)
         vids = Vector{VideoObj}([])
         for epoch in epochs
-            push!(vids, video.load_videoobj(animal, Int(day), Int(epoch)))
+            push!(vids, video.load_videoobj(animal, Int(day), Int(epoch); vidkws, tskws))
         end
         getVideoCollection(vids)
     end
