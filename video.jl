@@ -82,7 +82,7 @@ module video
     end
 
     function load_videots(file::String; 
-            initial_behavior_time::Union{Float64,Float32,Nothing}=nothing,
+            initial_behavior_time::Union{Real,Nothing}=nothing,
             center_by_loadmintime::Bool=true)
         @info "opening $file" "readCameraModuleTimeStamps('$file')"
         ts = mat"readCameraModuleTimeStamps($file)"
@@ -99,6 +99,8 @@ module video
         file = Load.video.getTsFiles(animal,day)[epoch]
         if correct_behavior_ts_offset
             initial_behavior_time = firstbehaviortime(animal,day,epoch)
+            initial_behavior_time = initial_behavior_time === nothing ? 
+                                     0 : initial_behavior_time
         else
             initial_behavior_time = 0
         end
@@ -222,10 +224,10 @@ module video
         task = subset(Load.task.load_task(animal, day), :type => t -> t .== "run")
         minimum(task.epoch)
     end
-    function firstbehaviortime(animal::String, day::Int, epoch::Union{Int,Nothing}=nothing)
+    function firstbehaviortime(animal::String, day::Int, epoch::Union{Int,Nothing}=nothing)::Union{Nothing,Real}
         epoch = epoch === nothing ? firstbehaviorepoch(animal, day) : epoch
-        first(subset(Load.load_behavior(animal, day), 
-                     :epoch=>e->e.==epoch).time)
+        beh = subset(Load.load_behavior(animal, day), :epoch=>e->e.==epoch)
+        isempty(beh) ? nothing : first(beh.time)
     end
     function indtotime(vid::VideoObj, i::Int)::Float64
         @fastmath i/vid.totalframe * vid.totaltime

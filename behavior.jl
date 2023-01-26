@@ -218,7 +218,7 @@ module behavior
     adds a `poke` field describing which DIO is poked using the individual
     poke_X fields
     """
-    function annotate_poke!(beh::DataFrame)::Nothing
+    function annotate_poke!(beh::DataFrame; manualpokefix::Bool=false)::Nothing
         pn = sort([name for name in names(beh) if occursin("poke_", name)])
         poke_matrix = replace(Matrix(beh[!, pn]), NaN=>0)
         valid = Utils.squeeze(any((!).(Matrix(ismissing.(beh[!, pn]))), dims=2))
@@ -226,6 +226,16 @@ module behavior
         pn = replace([findfirst(row) for row in eachrow(poke_matrix)],nothing=>0)
         #locs = accumulate(|, [(!).(ismissing.(beh[!,col])) for col in pn])
         beh[!,:poke] = Vector{Union{Missing,Int8}}(missing, size(beh,1))
+        if manualpokefix
+            @warn("annotate_poke! ↘" *
+                  "`manualpokefix==true :: switching poke 1 and 2. "*
+                  "the poke metadata switched earlier in the pipeline..."*
+                  "this is a temporary bandage for that mistake"
+                 )
+            tmp = copy(pn[:, 1])
+            pn[:, 1] = pn[:, 2]
+            pn[:, 2] = tmp
+        end
         beh[valid, :poke] = pn
         nothing
     end
