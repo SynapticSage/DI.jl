@@ -5,7 +5,7 @@ module celltet
     using DrWatson
     using ProgressMeter
     using CSV
-    import Table
+    import DIutils: Table
     using Glob
 
     export cellpath

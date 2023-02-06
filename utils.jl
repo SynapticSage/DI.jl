@@ -1,7 +1,7 @@
 module utils
 
     using Reexport
-    @reexport using Utils.filtreg
+    @reexport using DIutils.filtreg
     export filter, register, filterAndRegister
 
 end

@@ -2,7 +2,7 @@ module video
 
     using ..Load
     using  RecipesBase
-    import  Utils
+    import  DIutils
     using Glob, Printf
     using VideoIO
     using MATLAB
@@ -200,8 +200,8 @@ module video
         sizeimg = size(read(vid))
         xaxis = Load.pxtocm(collect(1:sizeimg[1]))
         yaxis = Load.pxtocm(collect(1:sizeimg[2]))
-        cropx = Utils.in_range(vidxax, cropx)
-        cropy = Utils.in_range(vidyax, cropy)
+        cropx = DIutils.in_range(vidxax, cropx)
+        cropy = DIutils.in_range(vidyax, cropy)
         xaxis = xaxis[cropx]
         yaxis = yaxis[cropy]
 
@@ -257,7 +257,7 @@ module video
         DimArray(img[vid.cropx, vid.cropy], (X(vid.xaxis), Y(vid.yaxis)))
     end
     function Base.getindex(vid::VideoObj, t::Float64)
-        search = vid.searchtable[Utils.searchsortednearest(vid.searchtable.timestamp, t),:]
+        search = vid.searchtable[DIutils.searchsortednearest(vid.searchtable.timestamp, t),:]
         seek(vid.vid, search.linearts)
         img = read(vid.vid)
         updatetime!(vid)

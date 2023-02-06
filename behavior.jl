@@ -1,6 +1,6 @@
 module behavior
 
-    import ..Load, Utils
+    import ..Load, DIutils
     using DrWatson
     using DataFrames
     using Infiltrator
@@ -91,7 +91,7 @@ module behavior
 
     function register_epoch_homewell!(beh::DataFrame)::DataFrame
         hws = determine_epoch_homewell(beh)
-        Utils.filtreg.register(hws, beh; on="epoch", transfer=["homewell"])
+        DIutils.filtreg.register(hws, beh; on="epoch", transfer=["homewell"])
         beh
     end
 
@@ -118,7 +118,7 @@ module behavior
 
             # Assign incorrect block labels
             if !isempty(correct_block.time)
-                closest_cor_samp = Utils.searchsortedprevious.([correct_block.time], incorrect_block.time)
+                closest_cor_samp = DIutils.searchsortedprevious.([correct_block.time], incorrect_block.time)
                 incorrect_block.hatraj = "*" .* correct_block[closest_cor_samp,:hatraj]
             elseif isempty(correct_block) && !isempty(incorrect_block)
                 incorrect_block = _assign_labels(incorrect_block)
@@ -137,7 +137,7 @@ module behavior
         beh[inds,:hatraj] = B.hatraj
         beh[inds,:ha] = B.ha
 
-        beh[inds,:hatrajnum] = Utils.searchsortednearest.(
+        beh[inds,:hatrajnum] = DIutils.searchsortednearest.(
                         [sort(unique(beh.hatraj[inds]))], beh.hatraj[inds])
 
         nothing
@@ -154,7 +154,7 @@ module behavior
 
         if any(home_trials)
             uareantraj = sort(unique(block.traj[home_trials]))
-            hometraj  = Utils.searchsortednearest.([uareantraj], 
+            hometraj  = DIutils.searchsortednearest.([uareantraj], 
                                                    block.traj[home_trials])
         else
             hometraj = []
@@ -162,7 +162,7 @@ module behavior
 
         if any(arena_trials)
             uareantraj = sort(unique(block.traj[arena_trials]))
-            arenatraj  = Utils.searchsortednearest.([uareantraj], 
+            arenatraj  = DIutils.searchsortednearest.([uareantraj], 
                                                    block.traj[arena_trials])
         else
             arenatraj = []
@@ -221,7 +221,7 @@ module behavior
     function annotate_poke!(beh::DataFrame; manualpokefix::Bool=false)::Nothing
         pn = sort([name for name in names(beh) if occursin("poke_", name)])
         poke_matrix = replace(Matrix(beh[!, pn]), NaN=>0)
-        valid = Utils.squeeze(any((!).(Matrix(ismissing.(beh[!, pn]))), dims=2))
+        valid = DIutils.squeeze(any((!).(Matrix(ismissing.(beh[!, pn]))), dims=2))
         poke_matrix = BitMatrix(poke_matrix[valid,1:end])
         pn = replace([findfirst(row) for row in eachrow(poke_matrix)],nothing=>0)
         #locs = accumulate(|, [(!).(ismissing.(beh[!,col])) for col in pn])
