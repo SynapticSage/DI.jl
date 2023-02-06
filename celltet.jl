@@ -49,12 +49,29 @@ module celltet
             cells = isempty(cells) ? cell : outerjoin(cells, cell, on=:unit, makeunique=true)
             Table.clean_duplicate_cols(cells)
         end
+        annotate_interneuron!(cells)
         return cells
     end
 
     function save_cells(cells::AbstractDataFrame, pos...; kws...)
         Load.save_table(cells, pos...; tablepath=:cells, kws...)
     end
+
+    """
+        annotate_interneuron
+
+    for now my simplistic method is just to thresh around 5-7 hz
+    """
+    function annotate_interneuron!(cells::DataFrame; thresh=6)
+        cells[!,:interneuron] = cells.meanrate .> 6
+        cells[!,:celltype] = Vector{Symbol}(undef, size(cells,1))
+        cells.celltype[findall(cells.interneuron)] .= :int
+        cells.celltype[findall((!).(cells.interneuron))] .= :pyr
+        @info "cell types"  interneurons=sum(cells.interneuron) pyr=size(cells,1)-sum(cells.interneuron)
+        nothing
+    end
+
+
     """
     convenience wrapper to save_cells, ensuring you don't forget to tag the data
     if you meant to
