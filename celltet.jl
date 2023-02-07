@@ -47,7 +47,7 @@ module celltet
         @showprogress 0.1 "loading cell files" for path in paths
             cell = Load.load_table_at_path(path, type)
             cells = isempty(cells) ? cell : outerjoin(cells, cell, on=:unit, makeunique=true)
-            Table.clean_duplicate_cols(cells)
+            Table.clean.clean_duplicate_cols(cells)
         end
         annotate_interneuron!(cells)
         return cells
