@@ -1,3 +1,4 @@
+__precompile__()
 module Filt
 
     using DataFrames

@@ -561,8 +561,9 @@ uuid = "dc8bdbbb-1ca9-579f-8c36-e416f6a65cce"
 version = "1.0.2"
 
 [[deps.DIutils]]
-deps = ["Blink", "Bootstrap", "CSV", "ColorSchemes", "Colors", "DataFrames", "DataStructures", "Dates", "DimensionalData", "DrWatson", "Entropies", "ImageFiltering", "Infiltrator", "LazyGrids", "LazySets", "MLJBase", "Missings", "NaNStatistics", "NamedTupleTools", "Plots", "ProgressLogging", "ProgressMeter", "Random", "Reexport", "SearchSortedNearest", "Statistics", "TableView", "ThreadsX"]
+deps = ["Blink", "Bootstrap", "CSV", "ColorSchemes", "Colors", "DataFrames", "DataStructures", "Dates", "DimensionalData", "DrWatson", "Entropies", "ImageFiltering", "Infiltrator", "LazyGrids", "LazySets", "MLJBase", "Missings", "NaNStatistics", "NamedTupleTools", "Plots", "ProgressLogging", "ProgressMeter", "Random", "Reexport", "SearchSortedNearest", "Statistics", "StatsBase", "TableView", "TextWrap", "ThreadsX"]
 path = "/home/ryoung/Projects/DIutils/"
+pinned = true
 uuid = "c2ca1ded-f992-4ce3-97e2-f83a2541d925"
 version = "0.1.0"
 

@@ -1,4 +1,5 @@
-module Load
+__precompile__()
+module DI
     
     using Revise
     using DrWatson
@@ -16,31 +17,20 @@ module Load
 
     load_default="arrow"
 
-
-    include(srcdir("Load", "behavior.jl"))
-    include(srcdir("Load", "celltet.jl"))
-    include(srcdir("Load", "decode.jl"))
-    include(srcdir("Load", "dlc.jl"))
-    include(srcdir("Load", "lfp.jl"))
-    include(srcdir("Load", "path.jl"))
-    include(srcdir("Load", "spikes.jl"))
-    include(srcdir("Load", "ripples.jl"))
-    include(srcdir("Load", "task.jl"))
-    include(srcdir("Load", "utils.jl"))
-    include(srcdir("Load", "video.jl"))
-    include(srcdir("Load", "superanimal.jl"))
-    
-    @reexport using .behavior
-    @reexport using .celltet
-    @reexport using .dlc
-    @reexport using .lfp
-    @reexport using .path
-    @reexport using .spikes
-    @reexport using .ripples
-    @reexport using .task
-    @reexport using .utils
-    @reexport using .video
-    @reexport using .superanimal
+    include("behavior.jl")
+    include("celltet.jl")
+    include("decode.jl")
+    include("dlc.jl")
+    include("lfp.jl")
+    include("path.jl")
+    include("spikes.jl")
+    include("ripples.jl")
+    include("task.jl")
+    include("utils.jl")
+    include("video.jl")
+    include("superanimal.jl")
+    include("Filt.jl")
+    include("Labels.jl")
 
     load_functions = Dict(
         "cycles"   => load_cycles,
@@ -52,7 +42,7 @@ module Load
         "decode"   => load_decode,
         "task"     => load_task,
         "ripples"  => load_ripples,
-        "coh"   => load_coh,
+        "coh"      => load_coh,
         "avgcoh"   => load_avgcoh,
        )
 
@@ -156,11 +146,11 @@ module Load
         end
         
 
-        # Load each data source
+        # DI each data source
         data = Dict{String,Any}()
         m = center ? nothing : 0 # nothing asks normalize to find the mintime and remove it, a number passed means use that for min
         for source ∈ load_order
-            data[source] = Load.load_functions[source](args...)
+            data[source] = DI.load_functions[source](args...)
             @assert typeof(data[source]) != Nothing
             if "time" ∈ names(data[source])
                 @info "Centering $source and **converting to minutes**"
@@ -176,7 +166,7 @@ module Load
             return data
         end
     end
-    load(;kws...) = Load.load(default_args[1], default_args[2]; kws...)
+    load(;kws...) = DI.load(default_args[1], default_args[2]; kws...)
 
     function get_load_kws(type::String; load_kws...)
         if type == "csv"

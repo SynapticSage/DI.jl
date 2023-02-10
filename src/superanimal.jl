@@ -1,5 +1,5 @@
 module superanimal
-    import ..Load
+    import ..DI
     using Infiltrator
     using DataFrames
 
@@ -11,11 +11,11 @@ module superanimal
 
     """
     function make_superanimal(animal_day_pairs::Tuple{String, Int}...;
-            data_sources=Load.total_set, tag=nothing, numsuperanim::Int=0)
+            data_sources=DI.total_set, tag=nothing, numsuperanim::Int=0)
         for source in data_sources
             #data=[]
-            loadmethod = Load.load_functions[source]
-            savemethod = Load.save_functions[source]
+            loadmethod = DI.load_functions[source]
+            savemethod = DI.save_functions[source]
             for (i,(animal, day)) in enumerate(animal_day_pairs)
                 datum = loadmethod(animal, day; type="arrow")
                 datum[!,:animal] .= animal
@@ -33,11 +33,11 @@ module superanimal
     centers the times in the stored data per animal/day
     """
     function center_and_stagger_times_and_neurons(numsuperanim::Int=0; 
-            data_sources=Load.total_set, append="", 
+            data_sources=DI.total_set, append="", 
             stagger_units::Bool=true,stagger_time::Bool=true)
 
-        beh, cells = Load.load_behavior("super",numsuperanim) ,
-                     Load.load_cells("super", numsuperanim)
+        beh, cells = DI.load_behavior("super",numsuperanim) ,
+                     DI.load_cells("super", numsuperanim)
         time_stats = combine(groupby(beh, [:animal,:day]), 
                            :time=>minimum, :time=>maximum)
 
@@ -61,9 +61,9 @@ module superanimal
                 continue
             end
             @info source
-            loadmethod = Load.load_functions[source]
-            savemethod = Load.save_functions[source]
-            time_vars  = Load.time_vars[source]
+            loadmethod = DI.load_functions[source]
+            savemethod = DI.save_functions[source]
+            time_vars  = DI.time_vars[source]
             time_vars  = time_vars isa Vector ? time_vars : [time_vars]
             datum = loadmethod("super", numsuperanim)
             if source == "cells"
