@@ -3,7 +3,6 @@ module DI
     
     using Revise
     using DrWatson
-    using Reexport
 
     using DataFrames
     import CSV, Arrow
