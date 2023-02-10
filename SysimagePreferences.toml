@@ -1,0 +1,3 @@
+[AutoSysimages]
+include = ["HDF5", "Plots", "Printf", "Statistics", "AxisArrays", "Glob", "Infiltrator", "ProtoStructs", "ImageFiltering", "DataStructures", "CairoMakie", "Revise", "MATLAB", "LazyGrids", "Random", "InteractiveUtils", "Arrow", "DataFramesMeta", "DataFrames", "RecipesBase", "StatsBase", "Colors", "LoopVectorization", "StatsPlots", "Shuffle", "HypothesisTests", "Makie", "Reexport", "ProgressMeter", "OhMyREPL", "KernelDensity", "CSV", "Distributions", "GeometricalPredicates", "NetCDF", "Markdown", "Gadfly", "DimensionalData", "VideoIO", "TableView", "Polyester", "ColorSchemes", "NaNStatistics"]
+exclude = []

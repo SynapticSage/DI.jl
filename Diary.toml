@@ -1,0 +1,6 @@
+author = "Ryan Y"
+autocommit = true
+blacklist = ["/home/ryoung/.julia/environments"]
+date_format = "E U d HH:MM"
+diary_name = "diary.jl"
+directory_mode = false
