@@ -37,7 +37,7 @@ function get_frame(video,sub)
 end
 
 
-function get_path(position, path)
+function get_position_path(position, path)
     sub = position[(position.time .>= path.start[1]) .& 
                    (position.time .<= path.end[1]) .&
                    (position.likelihood .> 0.5) .&
@@ -48,7 +48,7 @@ function subplot_block(position, paths; video=nothing)
     views = []
     for path in eachrow(paths)
         color = get(ColorSchemes.coolwarm, (path.btraj[1]-1)/8)
-        sub = get_path(position, path)
+        sub = get_position_path(position, path)
         if isempty(sub)
             print("sub is empty")
             continue
@@ -94,7 +94,7 @@ function plot_block(position, paths; video=nothing)
     P = Plots.plot(framestyle=:none)
     for (i,path) in enumerate(eachrow(paths))
         color = get(ColorSchemes.coolwarm, (path.btraj[1]-1)/8)
-        sub = get_path(position, path)
+        sub = get_position_path(position, path)
         if isempty(sub)
             print("sub is empty")
             continue

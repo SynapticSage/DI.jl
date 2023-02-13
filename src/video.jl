@@ -349,26 +349,26 @@ end
 # ============================================================
 # ============================================================
 # ============================================================
-"""
-    get_path
-
-depcrecated
-"""
-function get_path(animal, day, epoch; dayfactor=0, 
-        guessdayfactor=true,
-        source="deeplabcut")
-    if guessdayfactor
-        dayfactor = raw.animal_dayfactor[animal]
-    end
-    day += dayfactor
-    if source == "deeplabcut"
-        folder_path = "/Volumes/Colliculus/deeplabcut/" * 
-                     "goalmaze_tape-Ryan-2020-05-28/videos/"
-    end
-    possible_files = 
-    glob("$(animal)_$(@sprintf("%02d",day))_$(@sprintf("%02d",epoch))_*.mp4",
-             folder_path)
-    videopath = possible_files[1]
-    return videopath
-end
+# """
+#     get_path
+#
+# depcrecated
+# """
+# function get_path(animal, day, epoch; dayfactor=0, 
+#         guessdayfactor=true,
+#         source="deeplabcut")
+#     if guessdayfactor
+#         dayfactor = raw.animal_dayfactor[animal]
+#     end
+#     day += dayfactor
+#     if source == "deeplabcut"
+#         folder_path = "/Volumes/Colliculus/deeplabcut/" * 
+#                      "goalmaze_tape-Ryan-2020-05-28/videos/"
+#     end
+#     possible_files = 
+#     glob("$(animal)_$(@sprintf("%02d",day))_$(@sprintf("%02d",epoch))_*.mp4",
+#              folder_path)
+#     videopath = possible_files[1]
+#     return videopath
+# end
 
