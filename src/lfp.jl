@@ -43,6 +43,10 @@ function lfppath(animal::String, day::Int; tet=nothing, type::String="nc",
     pathstring(ref,tet::T where T<:Union{Int,UInt8}) = DrWatson.datadir("exp_raw",
                           "visualize_raw_neural", 
                           "$(animal)_$(day)_rhythm$(ref)_$(Int(tet)).$type")
+    pathstring(ref,tet::T where T<:Union{String,Symbol}) = DrWatson.datadir("exp_raw",
+                          "visualize_raw_neural", 
+                          "$(animal)_$(day)_rhythm$(ref)_$(string(tet)).$type")
+
     if ref === nothing
         ref = if isfile(pathstring("ref",tet))
             ref = true;
@@ -68,9 +72,9 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
     if tet == :default
         animal = pos[1]
         tet = default_tetrodes[animal]
-    elseif tet == :ca1ref
-        animal = pos[1]
-        tet = ca1ref_tetrodes[animal]
+    # elseif tet == :ca1ref
+    #     animal = pos[1]
+    #     tet = ca1ref_tetrodes[animal]
     elseif tet isa String
         tets  = DI.load_tetrode(pos...)
         tets  = groupby(tets,:area)[(;area=tet)]
@@ -107,9 +111,9 @@ function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, kws...)
     if tet == :default
         animal = pos[1]
         tet = default_tetrodes[animal]
-    elseif tet == :ca1ref
-        animal = pos[1]
-        tet = ca1ref_tetrodes[animal]
+    # elseif tet == :ca1ref
+    #     animal = pos[1]
+    #     tet = ca1ref_tetrodes[animal]
     end
     function getkeys(lfpPath::String)
         ncFile = NetCDF.open(lfpPath)
@@ -125,10 +129,13 @@ function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, kws...)
     if isfile(lfpPath)
         rm(lfpPath)
     end
-    #@infiltrate
     d=NcDim("sample", size(l,1))
     varlist = Vector{NcVar}([])
-    original_nc = NetCDF.open(lfppath(pos...;kws...))
+
+    file = lfppath(pos...;kws..., write=true)
+    dir, base = dirname(file), basename(file)
+    dir = islink(dir) ? readlink(dir) : dir
+    file = joinpath(dir, base)
     for k in names(l)
         var = NetCDF.NcVar(k, d)
         #var.nctype=NetCDF.getNCType(eltype(original_nc[k]))

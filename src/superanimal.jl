@@ -27,6 +27,32 @@ module superanimal
         GC.gc()
     end
 
+    export make_superanimal_lfp
+    """
+    make_superanimal
+
+    #params
+
+    """
+    function make_superanimal_lfp(animal_day_pairs::Tuple{String, Int}...;
+            tag=nothing, numsuperanim::Int=0)
+        for tet in [:ca1ref, :pfcref, :default]
+            #data=[]
+            loadmethod = DI.load_lfp
+            savemethod = DI.save_lfp
+            data = []
+            for (i,(animal, day)) in enumerate(animal_day_pairs)
+                datum = loadmethod(animal, day; tet)
+                datum[!,:animal] .= animal
+                datum[!,:day]    .= day
+                push!(data, datum)
+            end
+            data = vcat(data...)
+            DI.save_lfp(data, "super", numsuperanim; tet)
+        end
+        GC.gc()
+    end
+
     """
     center_times
 

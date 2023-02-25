@@ -13,8 +13,7 @@ function behaviorpath(animal::String, day::Int, tag::String=""; type::String=DI.
 end
 
 function load_behavior(animal::String, day::Int, tag::String="";
-
-    type::String=DI.load_default, kws...)
+                      type::String=DI.load_default, kws...)
 
     function typeFunc(type, name)
         if occursin("Vec", string(name))
