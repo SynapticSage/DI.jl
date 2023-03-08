@@ -96,10 +96,20 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
         if vars !== nothing
             keyset = String.(vars)
         end
-        lfp = Dict(var => Array(v.vars[var]) 
-                   for var in keyset)
+        lfp = Dict()
+        @showprogress "lfp" for var in keyset
+            q = try
+                var => Array(v.vars[var]) 
+            catch
+                continue
+                # @info "issue, tryin another method" var
+                # @time var => Array(v.vars[var][1:length(v.vars[var]))
+                # @info "success" var
+            end
+            push!(lfp, q)
+        end
         lfp = DataFrame(Dict(var => vec(lfp[var]) 
-                             for var in keyset))
+            for var in keys(lfp)))
     end
     if subtract_earlytime
         lfp[!,:time] .-= DI.min_time_records[end]
