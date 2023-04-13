@@ -232,3 +232,79 @@ function annotate_poke!(beh::DataFrame; manualpokefix::Bool=false)::Nothing
     beh[valid, :poke] = pn
     nothing
 end
+
+export debounce!
+"""
+    debounce!(df, event; threshold=0.1)
+debounce the event in the dataframe `df` by `threshold` seconds.
+# Arguments
+- `df`: a dataframe with a `:time` column
+- `event`: the name of the event column
+- `threshold`: the minimum time between events
+# Returns
+- `df`: the dataframe with the debounced event
+"""
+function debounce!(df::AbstractDataFrame, event; threshold=0.1)
+    dft = groupby(df, :time)
+    lastup, lastdown, isdown = [], [], false
+    (k, df) = first(zip(keys(dft), dft))
+    for (k, df) in zip(keys(dft), dft)
+        k    = k[1] # current time
+        isup = df[!,event][1] # current event
+        # store the current event
+        if isup == true
+            push!(lastup, k)
+        else
+            push!(lastdown, k)
+        end
+        if length(lastup) > 2 && length(lastdown) > 2
+            # if the event is down and the last two down events are
+            # closer than the threshold, then set all events up to
+            # the last down event to false
+            if !isup && (lastdown[end-1] - lastdown[end-2]) < threshold
+                inds = lastup .>= lastdown[end-2]
+                for k in lastup[inds]
+                    dft[(;time=k,)][!,event] .= false
+                end
+                # remove all the events that were affected
+                lastup = lastup[.!inds]
+            # if the event is up and the last two up events are
+            # closer than the threshold, then set all events down to
+            # the last up event to true
+            elseif isup && (lastup[end-1] - lastup[end-2]) < threshold
+                inds = lastdown .>= lastup[end-2]
+                for k in lastdown[inds]
+                    dft[(;time=k,)][!,event] .= true
+                end
+                # remove all the events that were affected
+                lastdown = lastdown[.!inds]
+            end
+        end
+    end
+    return combine(dft, identity)
+end
+
+export debounce_movement!
+function debounce_movement!(beh::DataFrame; threshold=0.1)
+    # Debounce the movement
+    println("Debouncing movement, fraction moving: ", 
+        mean(beh[:, :moving]))
+    beh[!,:movingdeb] = beh[:, :moving]
+    println("About to debounce -- takes about a minute")
+    prog = Progress(length(groupby(beh, :epoch)); desc="debouncing")
+    epochs = groupby(beh, :epoch) |> collect
+    iters = enumerate(epochs) |> collect
+    Threads.@threads for (i,epoch) in iters
+        epochs[i] = debounce!(epoch, :movingdeb; threshold)
+        next!(prog)
+    end
+    beh = vcat(epochs...)
+    println("fraction before debounce: ", mean(beh[:, :moving]))
+    println("fraction moving after debounce: ", 
+        mean(beh[:, :movingdeb]))
+    beh.moving = beh[:, :movingdeb]
+    @infiltrate
+    @assert(!all(beh.moving .== beh.movingdeb),
+        "movingdeb should not be the same as moving")
+    beh
+end
