@@ -95,6 +95,17 @@ module DI
         push!(min_time_records, m)
     end
 
+    """
+        normalize(data, time, data_source, mintime=nothing)
+    
+    Normalizes the time variable to start at 0, or at mintime if passed
+    
+    # Arguments
+    - data: Dict of data sources (dataframes of different types of data)
+    - time: time variable to normalize
+    - data_source: which data source is being normalized
+    - mintime: optional, if passed, time is normalized to start at mintime
+    """
     function normalize(data, time, data_source, mintime=nothing)
         # Determine a time normalizing function
         if mintime === nothing
@@ -110,26 +121,20 @@ module DI
 
 
     """
-        load(animal, day)
+        load(animal, day; data_source=default_set, center=true)
 
     Loads up the datasets we plan to use to plot out the raw raster data
 
-    =====
-    Input
-    =====
-    animal : String
-        Name of the animal
-    day : Int
-        Integer of the day
+    # Input
+    - `animal` - animal name
+    - `day` - day number
+    - `args...` - additional arguments to pass to the load functions
+    - `as` - whether to return a tuple or a dict, default is tuple
+    - `data_source` - which data sources to load, default is `default_set`
+    - `center` - whether to center the time variable to start at 0, default is true
 
-    data_source : optional
-        which sources of data to load
-
-    ======
-    Output
-    ======
-    (raster, behavior)
-
+    # Output
+    - `data` - a tuple or dict of data sources
     """
     function load(args...; as="tuple", data_source=default_set, center=true)
 

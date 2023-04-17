@@ -12,6 +12,20 @@ function behaviorpath(animal::String, day::Int, tag::String=""; type::String=DI.
     return path
 end
 
+"""
+    load_behavior(animal::String, day::Int, tag::String=""; type::String=DI.load_default, kws...)
+
+Load the behavior data for a given animal and day.
+# Arguments
+- `animal::String`: animal name
+- `day::Int`: day number
+- `tag::String="": tag to append to the filename
+- `type::String=DI.load_default`: type of file to load. Default is to use the default
+    file type for the given animal and day.
+- `kws...`: keyword arguments to pass to `DI.load_table`
+# Returns
+- `beh::DataFrame`: behavior data
+"""
 function load_behavior(animal::String, day::Int, tag::String="";
                       type::String=DI.load_default, kws...)
 
@@ -51,6 +65,9 @@ function load_behavior(animal::String, day::Int, tag::String="";
     return beh
 end
 
+"""
+    save_behavior()
+"""
 function save_behavior(behavior::AbstractDataFrame, pos...; kws...)
     DI.save_table(behavior, pos...; tablepath=:behavior, kws...)
 end
@@ -285,11 +302,12 @@ function debounce!(df::AbstractDataFrame, event; threshold=0.1)
 end
 
 export debounce_movement!
-function debounce_movement!(beh::DataFrame; threshold=0.1)
+function debounce_movement!(beh::DataFrame; threshold=0.1, 
+    replace_moving=true)
     # Debounce the movement
     println("Debouncing movement, fraction moving: ", 
         mean(beh[:, :moving]))
-    beh[!,:movingdeb] = beh[:, :moving]
+    beh[!,:movingdeb] = copy(beh[:, :moving])
     println("About to debounce -- takes about a minute")
     prog = Progress(length(groupby(beh, :epoch)); desc="debouncing")
     epochs = groupby(beh, :epoch) |> collect
@@ -302,9 +320,8 @@ function debounce_movement!(beh::DataFrame; threshold=0.1)
     println("fraction before debounce: ", mean(beh[:, :moving]))
     println("fraction moving after debounce: ", 
         mean(beh[:, :movingdeb]))
-    beh.moving = beh[:, :movingdeb]
-    @infiltrate
     @assert(!all(beh.moving .== beh.movingdeb),
         "movingdeb should not be the same as moving")
+    beh.moving = beh[:, :movingdeb]
     beh
 end
