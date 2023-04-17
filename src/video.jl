@@ -94,7 +94,7 @@ end
 function load_videots(animal::String, day::Int, epoch::Int; 
         correct_behavior_ts_offset::Bool=true,
         center_by_loadmintime::Bool=true)
-    file = DI.video.getTsFiles(animal,day)[epoch]
+    file = getTsFiles(animal,day)[epoch]
     if correct_behavior_ts_offset
         initial_behavior_time = firstbehaviortime(animal,day,epoch)
         initial_behavior_time = initial_behavior_time === nothing ? 
@@ -210,7 +210,7 @@ end
 return the boundaries of the task
 """
 function taskboundaries(animal::String, day::Int, epoch::Int)
-    task = DI.task.load_task(animal, day)
+    task = load_task(animal, day)
     task = @subset(task, :epoch .== epoch, :name .== "boundary")
     extrema(task.x), extrema(task.y)
 end
@@ -219,7 +219,7 @@ end
 return the first behavioral epoch
 """
 function firstbehaviorepoch(animal::String, day::Int)
-    task = subset(DI.task.load_task(animal, day), :type => t -> t .== "run")
+    task = subset(load_task(animal, day), :type => t -> t .== "run")
     minimum(task.epoch)
 end
 function firstbehaviortime(animal::String, day::Int, epoch::Union{Int,Nothing}=nothing)::Union{Nothing,Real}
@@ -324,7 +324,7 @@ end
 
 function load_videoobj(animal::String, day::Int, epoch::Int; 
         vidkws=(;), tskws=(;))::VideoObj
-    file = video.getVideoFiles(animal, day)
+    file = getVideoFiles(animal, day)
     isempty(file) ? @error("load_videoobj :: file list is empty") : nothing
     file = file[epoch]
     vid  = load_video(file; vidkws...)
@@ -333,11 +333,11 @@ function load_videoobj(animal::String, day::Int, epoch::Int;
 end
 function load_videocollection(animal::String, day::Int; 
         vidkws=(;), tskws=(;))::VideoCollection
-    task = DI.task.load_task(animal, day)
+    task = DI.load_task(animal, day)
     epochs = unique(task.epoch)
     vids = Vector{VideoObj}([])
     for epoch in epochs
-        push!(vids, video.load_videoobj(animal, Int(day), Int(epoch); vidkws, tskws))
+        push!(vids, load_videoobj(animal, Int(day), Int(epoch); vidkws, tskws))
     end
     getVideoCollection(vids)
 end
