@@ -148,6 +148,10 @@ module DI
         else
             throw(ArgumentError("as cannot be $as"))
         end
+
+        if !isempty(data_source) && isempty(load_order)
+            throw(ValueError("data_source must contain at least one element"))
+        end
         
 
         # DI each data source

@@ -64,7 +64,13 @@ function load_behavior(animal::String, day::Int, tag::String="";
         end
         @assert ("x" ∈ names(beh)) "Fuck"
     end
-    postprocess!(beh)
+    if startswith(animal, "super")
+        for animal in groupby(beh, :animal) 
+            postprocess!(animal)
+        end
+    else
+        postprocess!(beh)
+    end
     return beh
 end
 function load_behavior(D::AbstractDict; kws...)
@@ -95,7 +101,7 @@ end
 # But for now the plan is to use these post-processing bandages.
 # ----------------------------------------------------------------------
 
-function postprocess!(beh::DataFrame)::Nothing
+function postprocess!(beh::AbstractDataFrame)::Nothing
     register_epoch_homewell!(beh)
     annotate_hatraj!(beh)
     annotate_poke!(beh)
@@ -104,7 +110,7 @@ function postprocess!(beh::DataFrame)::Nothing
     nothing
 end
 
-function determine_epoch_homewell(beh::DataFrame)::DataFrame
+function determine_epoch_homewell(beh::AbstractDataFrame)::AbstractDataFrame
     B = groupby(subset(dropmissing(beh,[:startWell,:stopWell]),
                        :startWell=>w->w .!= -1, :stopWell=>w->w .!=-1),
                 :epoch)
@@ -114,13 +120,13 @@ function determine_epoch_homewell(beh::DataFrame)::DataFrame
     hws[!, Not([:startWell_mode, :stopWell_mode])]
 end
 
-function register_epoch_homewell!(beh::DataFrame)::DataFrame
+function register_epoch_homewell!(beh::AbstractDataFrame)::DataFrame
     hws = determine_epoch_homewell(beh)
     DIutils.filtreg.register(hws, beh; on="epoch", transfer=["homewell"])
     beh
 end
 
-function annotate_hatraj!(beh::DataFrame)::Nothing
+function annotate_hatraj!(beh::AbstractDataFrame)::Nothing
     beh[!,:hatraj]    = Vector{Union{String,Missing}}(missing, size(beh,1))
     beh[!,:hatrajnum] = Vector{Union{Int8,Missing}}(missing, size(beh,1))
     beh[!,:ha] = Vector{Union{Char,Missing}}(missing, size(beh,1))
@@ -243,7 +249,7 @@ end
 adds a `poke` field describing which DIO is poked using the individual
 poke_X fields
 """
-function annotate_poke!(beh::DataFrame; manualpokefix::Bool=false)::Nothing
+function annotate_poke!(beh::AbstractDataFrame; manualpokefix::Bool=false)::Nothing
     pn = sort([name for name in names(beh) if occursin("poke_", name)])
     poke_matrix = replace(Matrix(beh[!, pn]), NaN=>0)
     valid = DIutils.squeeze(any((!).(Matrix(ismissing.(beh[!, pn]))), dims=2))
@@ -353,7 +359,7 @@ and define the animal as moving if the speed is greater than
 # Returns
 - `beh`: the dataframe with the `:moving` column
 """
-function immobility!(beh::DataFrame; win=10, 
+function immobility!(beh::AbstractDataFrame; win=10, 
     move_thresh=move_thresh, movebool_gaussian=1)::DataFrame
 
     rollit(x,win)  = [zeros(Int(win/2-1)); rollmean(x, win); 
@@ -366,10 +372,18 @@ function immobility!(beh::DataFrame; win=10,
     #     plot!(xlabel="Time (s)", ylabel="Speed (cm/s)")
     #     ylims!(0,10)
     # end
-    stillness = abs.(beh.speedsmooth) .< move_thresh .|| (beh.poke .> 0)
+    stillness = (ismissing(beh.poke) .|| 
+                (.!(ismissing.(beh.poke)) .&& (beh.poke .> 0))) .&&
+                abs.(beh.speedsmooth) .< move_thresh
+    replace!(stillness, missing=>true)
     beh[!,:moving_speedsmooth] = .!stillness
-    beh[!,:movingsmooth] = imfilter(beh.moving_speedsmooth,
-    Kernel.gaussian((movebool_gaussian*10,)))
+    beh[!,:movingsmooth] = beh[:, :moving_speedsmooth]
+    try
+        beh[!,:movingsmooth] = imfilter(beh.moving_speedsmooth,
+                                Kernel.gaussian((movebool_gaussian*10,)))
+    catch
+        @infiltrate
+    end
     B = groupby(
         @subset(beh, :traj .!= NaN, :startWell .!= -1, :stopWell .!= -1; 
                 view=true), :traj)
