@@ -4,6 +4,7 @@ using ProgressMeter
 using CSV
 import DIutils: Table
 using Glob
+using Infiltrator
 
 export cellpath
 export load_cells
@@ -130,3 +131,22 @@ function cell_resort(cells::DataFrame, spikes::DataFrame, pos...; kws...)
     cells, spikes
 end
 
+
+"""
+    annotate_pyrlayer!
+
+    pyramidal layer based on area == "CA1" and number of cells >= 4
+    with meanrate < 6
+"""
+function annotate_pyrlayer!(cells)
+    cells[!,:pyrlayer] = fill(false, size(cells,1))
+    tetrodes = groupby(cells, :tetrode)
+    for tetrode in tetrodes
+        if size(subset(tetrode, :meanrate => m->m .< 6),1) >= 4 && 
+                                 tetrode[1,:area] == "CA1"
+            tetrode[!,:pyrlayer] .= true
+        else
+            tetrode[!,:pyrlayer] .= false
+        end
+    end
+end
