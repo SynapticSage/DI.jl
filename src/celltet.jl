@@ -140,7 +140,9 @@ end
 """
 function annotate_pyrlayer!(cells)
     cells[!,:pyrlayer] = fill(false, size(cells,1))
-    tetrodes = groupby(cells, :tetrode)
+    groups = :animal in propertynames(cells) ? [:animal,:tetrode] :
+                                                :tetrode
+    tetrodes = groupby(cells, groups)
     for tetrode in tetrodes
         if size(subset(tetrode, :meanrate => m->m .< 6),1) >= 4 && 
                                  tetrode[1,:area] == "CA1"

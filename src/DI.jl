@@ -34,6 +34,7 @@ module DI
     load_functions = Dict(
         "cycles"   => load_cycles,
         "behavior" => load_behavior,
+        "beh"      => load_behavior,
         "spikes"   => load_spikes,
         "lfp"      => load_lfp,
         "cells"    => load_cells,
@@ -57,6 +58,7 @@ module DI
     path_functions = Dict(
         "cycles"   => cyclepath,
         "behavior" => behaviorpath,
+        "beh"      => behaviorpath,
         "spikes"   => spikespath,
         "lfp"      => lfppath,
         "cells"    => cellpath,
@@ -67,16 +69,17 @@ module DI
     )
 
     time_vars = Dict(
-        "cycles" => [:time, :start, :stop],
-        "spikes" => :time,
+        "cycles"   => [:time, :start, :stop],
+        "spikes"   => :time,
         "behavior" => :time,
-        "lfp" => :time,
-        "coh" => :time,
-        "avg" => :time,
-        "cells" => [],
-        "task" => [],
-        "ripples" => ["time", "start", "stop"],
-        "cycles" =>  ["time", "start", "stop"]
+        "beh"      => :time,
+        "lfp"      => :time,
+        "coh"      => :time,
+        "avg"      => :time,
+        "cells"    => [],
+        "task"     => [],
+        "ripples"  => ["time", "start", "stop"],
+        "cycles"   => ["time", "start", "stop"]
     )
 
     # Module-wide settings
@@ -136,8 +139,15 @@ module DI
     # Output
     - `data` - a tuple or dict of data sources
     """
-    function load(args...; as="tuple", data_source=default_set, center=true)
-
+    function load(args...; as="tuple", data_source=default_set, center=true,
+            kws...)
+        if :data_sources in keys(kws)
+            data_source = kws[:data_sources]
+        end
+        if "beh" in data_source
+            data_source = setdiff(data_source, ["beh"])
+            push!(data_source, "behavior")
+        end
         # Establish a load order
         if as == "dict"
             load_order = sort(data_source, by=source->source=="behavior", rev=true)
@@ -246,6 +256,19 @@ module DI
 
         end
     end
+
+    """
+        save_table(data, pos...; tablepath=nothing, append="", kws...)
+
+    Saves a table to a path
+    # Input
+    - `data` - a DataFrame
+    - `pos...` - positional arguments to pass to the path function
+                see `path_functions` dict in this module
+    - `tablepath` - the tablepath to use, see `path_functions` dict in this module
+    - `append` - whether to append to the table, default is false
+    - `kws...` - keyword arguments to pass to the path function
+    """
     function save_table(data::AbstractDataFrame, pos...; tablepath=nothing,
             append::String="", kws...)
         if tablepath === nothing
@@ -266,7 +289,8 @@ module DI
         else
             type = "csv"
         end
-        save_table_at_path(data, path, type) end
+        save_table_at_path(data, path, type)
+    end
 
     """
         tables_to_type(animal::String, day::Int; 

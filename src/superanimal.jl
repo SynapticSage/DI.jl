@@ -66,8 +66,8 @@ module superanimal
     - stagger_units::Bool=true -- stagger the units, avoid unit collisions
     - stagger_time::Bool=true -- stagger the times, avoid time collisions
     """
-    function center_and_stagger_times_and_neurons(numsuperanim::Int=0; 
-            data_sources=DI.total_set, append="_cleaned", 
+    function superanimal_clean_times_and_neurons(numsuperanim::Int=0; 
+            data_sources=DI.total_set, append="_clean", 
             stagger_units::Bool=true,
             stagger_time::Bool=true,
             if_has_old_unit=:error)
@@ -80,6 +80,7 @@ module superanimal
         time_stats[:,:time_maximum] .= [0; time_stats[1:end-1,:time_maximum]]
         time_stats  = transform(time_stats, 
                               :time_maximum=>cumsum=>:time_prev_maximum)
+        time_stats.correct_factor = Vector{Float64}(0.0, size(time_stats,1))
         time_stats  = groupby(time_stats, [:animal, :day])
 
         unit_stats = combine(groupby(cells, [:animal,:day]), 
@@ -123,8 +124,10 @@ module superanimal
                 # 
                 for timefield in time_vars
                     group[!,timefield] .-= mt.time_minimum      # center by behavior 0
+                    mt.correct_factor -= mt.time_minimum
                     if stagger_time
                         group[!,timefield] .+= mt.time_prev_maximum - mt.time_minimum # add previous max time of prev dataset
+                        mt.correct_factor += mt.time_prev_maximum - mt.time_minimum
                     end
                 end
                 if stagger_units && :unit in propertynames(group)
@@ -149,12 +152,33 @@ module superanimal
             else
                 savemethod(datum, "super$append", numsuperanim)
             end
+            # Save the time correction factor
+            DI.save_table(time_stats, "super$append", numsuperanim; 
+                          name="time_correction_factor")
         end
         GC.gc()
         @info "be sure to run conversion to arrow if you change anything : tables_to_type()"
     end
 
-    function fix_complex()
+    """
+        superanimal_timeconversion
+    if both an uncleaned and cleaned versions of superanimal data, this
+    can be used to find the time conversion factor between the two
+    """
+    function superanimal_timeconversion(superanimal, day; append="_clean")
+        beh2=DI.load_behavior(superanimal*append, day)
+        andays=vcat((unique(eachrow(beh2[!,[:animal, :day]])).|>DataFrame)...)
+        animals, days = andays.animal, andays.day
+        beh1 = vcat([
+    (x=DI.load_behavior(animal, day)[!,[:time]];x.animal.=animal;x) for (animal,day) in
+                zip(animals, days)]...; cols=:intersect)
+        sort!(beh1, [:animal, :time])
+        sort!(beh2, [:animal, :time])
+        g1=groupby(beh1, :animal)
+        g2=groupby(beh2, :animal)
+        animals = intersect(keys(g1)|>collect.|>NamedTuple,
+                            keys(g2)|>collect.|>NamedTuple)
+    Dict(animal[1]=>g2[animal].time[1]-g1[animal].time[1] for animal in animals)
     end
 
 end

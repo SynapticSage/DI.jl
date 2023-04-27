@@ -69,6 +69,9 @@ end
 
 function load_lfp(pos...; tet=nothing, vars=nothing, 
         subtract_earlytime=false, kws...)
+    if :tetrode in propertynames(kws)
+        tet = kws[:tetrode]
+    end
     if tet == :default
         animal = pos[1]
         tet = default_tetrodes[animal]
@@ -114,6 +117,7 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
     if subtract_earlytime
         lfp[!,:time] .-= DI.min_time_records[end]
     end
+    lfp.broadraw = convert(Vector{Float16}, lfp.broadraw)
     return lfp
 end
 
@@ -137,6 +141,7 @@ function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, kws...)
     lfpPath = lfppath(pos...; kws..., tet, write=true)
     @info "saving" lfpPath
     if isfile(lfpPath)
+        @info "removing old file"
         rm(lfpPath)
     end
     d=NcDim("sample", size(l,1))
@@ -146,6 +151,7 @@ function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, kws...)
     dir, base = dirname(file), basename(file)
     dir = islink(dir) ? readlink(dir) : dir
     file = joinpath(dir, base)
+    # k = (names(l) |> collect)[2]
     for k in names(l)
         var = NetCDF.NcVar(k, d)
         #var.nctype=NetCDF.getNCType(eltype(original_nc[k]))
