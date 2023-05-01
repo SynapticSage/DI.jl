@@ -64,12 +64,12 @@ function load_behavior(animal::String, day::Int, tag::String="";
         end
         @assert ("x" ∈ names(beh)) "Fuck"
     end
-    if startswith(animal, "super")
-        for animal in groupby(beh, :animal) 
-            postprocess!(animal)
-        end
-    else
+    if !startswith(animal, "super")
         postprocess!(beh)
+    # else
+    #     for animal in groupby(beh, :animal) 
+    #         postprocess!(animal)
+    #     end
     end
     return beh
 end
