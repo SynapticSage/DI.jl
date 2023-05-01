@@ -48,6 +48,7 @@ module superanimal
                 push!(data, datum)
             end
             data = vcat(data...)
+            @assert(!isempty(data), "No data for $tet")
             DI.save_lfp(data, "super", numsuperanim; tet)
         end
         GC.gc()
@@ -70,17 +71,18 @@ module superanimal
             data_sources=DI.total_set, append="_clean", 
             stagger_units::Bool=true,
             stagger_time::Bool=true,
+            skip_list=["lfp"], 
             if_has_old_unit=:error)
 
         beh, cells = DI.load_behavior("super",numsuperanim) ,
                      DI.load_cells("super",   numsuperanim)
-        time_stats = combine(groupby(beh, [:animal,:day]), 
+        time_stats = combine(groupby(beh, [:animal,:day], sort=false), 
                            :time=>minimum, :time=>maximum)
 
         time_stats[:,:time_maximum] .= [0; time_stats[1:end-1,:time_maximum]]
         time_stats  = transform(time_stats, 
                               :time_maximum=>cumsum=>:time_prev_maximum)
-        time_stats.correct_factor = Vector{Float64}(0.0, size(time_stats,1))
+        time_stats.correct_factor = fill(Float64(0.0), size(time_stats,1))
         time_stats  = groupby(time_stats, [:animal, :day])
 
         unit_stats = combine(groupby(cells, [:animal,:day]), 
@@ -91,9 +93,8 @@ module superanimal
         unit_stats.unit_minimum .= 0
         unit_stats  = groupby(unit_stats, [:animal,:day])
 
-
         for source in data_sources
-            if source == "lfp"
+            if source in skip_list
                 @info "skipping lfp"
                 continue
             end
@@ -117,6 +118,11 @@ module superanimal
                 datum[!,:old_unit] = datum[:,:unit]
             end
             groups = groupby(datum, [:animal,:day])
+            key = ((keys(time_stats)) |> collect)[2]
+            if :unit in propertynames(datum)
+                println(combine(groupby(datum, [:animal,:day]), 
+                :unit=>minimum, :unit=>maximum))
+            end
             for key in keys(time_stats) # iterate over animal, day
                 mt, nt, group = time_stats[key], 
                             unit_stats[NamedTuple(key)], 
@@ -131,10 +137,19 @@ module superanimal
                     end
                 end
                 if stagger_units && :unit in propertynames(group)
-                    @info "unit found" source key
-                    group.unit .-= nt.unit_minimum      # center by behavior 0
-                    group.unit .+= nt.unit_prev_maximum # add previous max time of prev dataset
+                    @info "unit found" source key 
+                    println(nt)
+                    delta = (nt.unit_prev_maximum)
+                    println("Applying delta=", delta)
+                    if !((nt.unit_minimum[1], nt.unit_maximum[1]) == extrema(group.unit))
+                        # "you may need to redo the base super dataset")
+                    end
+                    group.unit .+= delta
+                    println("min of group[2] =", minimum(groups[2].unit))
                 end
+                # if nt.unit_prev_maximum > 0
+                #     @assert minimum(group.unit) == (nt.unit_prev_maximum.+1)[1]
+                # end
             end
             if stagger_time && :time in propertynames(datum)
                 sort!(datum, [:time])
@@ -142,19 +157,25 @@ module superanimal
                 sort!(datum, [x for x in [:animal, :day, :time] 
                     if x in propertynames(datum)])
             end
+            @infiltrate
             if source == "cells"
                 @assert datum.old_unit != datum.unit
-            end
-            if source == "cells"
                 savemethod(datum, "super$append", numsuperanim)
                 savemethod(datum, "super$append", numsuperanim; 
-                           type="arrow")
+                                  type="arrow")
             else
                 savemethod(datum, "super$append", numsuperanim)
             end
             # Save the time correction factor
-            DI.save_table(time_stats, "super$append", numsuperanim; 
-                          name="time_correction_factor")
+            if :unit in propertynames(datum)
+            @assert(all(datum.unit .< 500), "unit is too large")
+            end
+        end
+        try
+            DI.save_table(combine(time_stats,identity), "super$append", numsuperanim; 
+                              name="time_correction_factor")
+        catch e
+            @infiltrate
         end
         GC.gc()
         @info "be sure to run conversion to arrow if you change anything : tables_to_type()"
@@ -178,7 +199,7 @@ module superanimal
         g2=groupby(beh2, :animal)
         animals = intersect(keys(g1)|>collect.|>NamedTuple,
                             keys(g2)|>collect.|>NamedTuple)
-    Dict(animal[1]=>g2[animal].time[1]-g1[animal].time[1] for animal in animals)
+        Dict(animal[1]=>g2[animal].time[1]-g1[animal].time[1] for animal in animals)
     end
 
 end
