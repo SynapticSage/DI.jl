@@ -26,6 +26,17 @@ function cellpath(animal::String, day::Int, tag::String=""; type="csv", kws...)
                                "$(animal)_$(day)_cell$tag.$type")
 end
 
+"""
+how to construct the path for a single cell/unit table
+
+# Arguments
+- `animal`: animal name
+- `day`: day number
+- `tag`: tag for the cell/unit table; default is empty string; if tag is "*",
+then the path is constructed by globbing the tag
+# Returns
+- `paths`: a vector of paths
+"""
 function cellpaths(animal::String, day::Int, tag::String=""; kws...)
     path = cellpath(animal, day, tag; kws...)
     if occursin("*", path)
@@ -37,8 +48,39 @@ function cellpaths(animal::String, day::Int, tag::String=""; kws...)
     end
     return paths
 end
+"""
+    cellpath(animal::String, dat::Int, tag::String; type="csv", kws...)
+
+how to construct the path for a single cell/unit table
+
+# Arguments
+- `animal`: animal name
+- `day`: day number
+- `tag`: tag for the cell/unit table; default is empty string; if tag is "*",
+then the path is constructed by globbing the tag
+# Returns
+- `paths`: a vector of paths
+"""
+function cellpaths(animal::String, dat::Int, tag::Vector{String}; kws...)
+    paths = Vector{String}(undef, length(tag))
+    for (i,t) in enumerate(tag)
+        paths[i] = cellpath(animal, dat, t; kws...)
+    end
+    return Iterators.flatten(paths) |> collect
+end
 
 
+"""
+    load_cells(pos...; type="arrow", kws...)
+
+load cell/unit table(s) from path(s)
+
+# Arguments
+- `pos`: positional arguments for `cellpath`
+- `type`: type of the table; default is "arrow"
+- `kws`: keyword arguments for `cellpath`; which includes tag field 
+         see `cellpath` for more details
+"""
 function load_cells(pos...; type="arrow", kws...)
     paths  = cellpaths(pos...; type, kws...)
     cells = DataFrame()
@@ -73,8 +115,13 @@ end
 """
 convenience wrapper to save_cells, ensuring you don't forget to tag the data
 if you meant to
+
+in general, if you have some bonus cell information, it's a good idea to save
+it using a tag. optionally, above, a cell table can be loaded from multiple
+tags.
 """
-function save_cell_taginfo(cells::AbstractDataFrame, animal::String, day::Int, tag::String; kws...)
+function save_cell_taginfo(cells::AbstractDataFrame, animal::String, day::Int, 
+    tag::String; kws...)
     DI.save_table(cells, animal, day, tag; tablepath=:cells, kws...)
 end
 
@@ -90,7 +137,7 @@ function cells_to_type(animal::String, day::Int, tag::String="*",
 
 end
 
-function fill_missing_cellinds(cells, missing_val=missing)
+function fill_missing_cellinds(cells::DataFrame, missing_val=missing)
     cells = sort(cells, :unit)
     @error "Not implemented"
 end

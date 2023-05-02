@@ -33,9 +33,13 @@ export lfppath
                  ref=nothing)
 
 Obtains path to lfp file
+
+# Arguments
+ ---------
+- `animal` -- 
 """
 function lfppath(animal::String, day::Int; tet=nothing, type::String="nc", 
-                 ref=nothing, write=false, kws...)
+                 ref=nothing, write=false, tag=nothing, kws...)
 
     pathstring(ref,::Nothing) = DrWatson.datadir("exp_raw",
                                  "visualize_raw_neural", 
@@ -60,11 +64,12 @@ function lfppath(animal::String, day::Int; tet=nothing, type::String="nc",
             end
         end
     end
-    if ref !== nothing && ref !== false
+    file = if ref !== nothing && ref !== false
         pathstring("ref",tet)
     else
         pathstring("",tet)
     end
+    file = tag === nothing ? file : replace(file, ".nc" => "_$tag.nc")
 end
 
 function load_lfp(pos...; tet=nothing, vars=nothing, 
@@ -121,7 +126,24 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
     return lfp
 end
 
-function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, kws...)
+"""
+    save_lfp(l::AbstractDataFrame, pos...; tet=nothing, kws...)
+
+Saves lfp to netcdf file
+
+# Arguments
+- `l::AbstractDataFrame` : lfp data
+- `pos...` : position arguments to `lfppath`
+- `tet=nothing` : tetrode to save; if nothing, uses default tetrode
+- `kws...` : keyword arguments to `lfppath`
+             - `type::String="nc"` : file type
+             - `ref=nothing` : whether to use reference file
+             - tag=nothing : tag to add to file name
+            see `lfppath` for more details
+             
+"""
+function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, 
+                                                kws...)
     if tet == :default
         animal = pos[1]
         tet = default_tetrodes[animal]
