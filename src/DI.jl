@@ -216,23 +216,32 @@ module DI
         tablepath = String(tablepath)
         path = path_functions[tablepath](animal, day, pos...; kws...)
 
-        if :type in keys(kws)
-            type = kws[:type]
+        type = if :type in keys(kws)
+            kws[:type]
         else
-            type = load_default
+            load_default
         end
+
+        function gettable(path)
+            data = load_table_at_path(path, type; load_kws...)
+            detect_complex_format_wrong = eltype.(eachcol(data)) .<: NamedTuple
+            for i in findall(detect_complex_format_wrong)
+                data[!,i] = getproperty.(data[!,i], :re) + 
+                            getproperty.(data[!,i], :im)im
+            end
+            data
+        end
+
         if append != ""
             path = split(path, ".")
             path[1] = path[1] * "$append"
             path = join(path, ".")
         end
-
-        data = load_table_at_path(path, type; load_kws...)
-
-        detect_complex_format_wrong = eltype.(eachcol(data)) .<: NamedTuple
-        for i in findall(detect_complex_format_wrong)
-            data[!,i] = getproperty.(data[!,i], :re) + 
-                        getproperty.(data[!,i], :im)im
+        data = if '*' in path
+            data=[gettable(p) for p in glob(path)]
+            vcat(data..., cols=:union)
+        else
+            gettable(path)
         end
 
         data
