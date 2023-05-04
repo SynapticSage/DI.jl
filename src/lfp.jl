@@ -143,7 +143,7 @@ Saves lfp to netcdf file
              
 """
 function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, 
-                                                kws...)
+    handlemissing=:error, kws...)
     if tet == :default
         animal = pos[1]
         tet = default_tetrodes[animal]
@@ -161,6 +161,21 @@ function save_lfp(l::AbstractDataFrame, pos...; tet=nothing,
         tet = l.tetrode[1];
     end
     lfpPath = lfppath(pos...; kws..., tet, write=true)
+    lfpPath = if :tag in keys(kws)
+        replace(lfpPath, ".nc" => "_$(kws[:tag]).nc")
+    elseif :append in keys(kws)
+        replace(lfpPath, ".nc" => "_$(kws[:append]).nc")
+    else
+        lfpPath
+    end
+    if any(Missing .<: eltype.(eachcol(first(l,10))))
+        if handlemissing == :error
+            error("missing values in lfp, use handlemissing=:drop " *
+                  "if you want to drop them")
+        elseif handlemissing == :drop
+            l = dropmissing(l)
+        end
+    end
     @info "saving" lfpPath
     if isfile(lfpPath)
         @info "removing old file"
@@ -212,14 +227,29 @@ end
 # Oscillation cycles
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-function cyclepath(animal::String, day::Int, tetrode::Union{String,Int}; type::String="csv")
+function cyclepath(animal::String, day::Int, 
+    tetrode::Union{String,Int,Nothing}=nothing,
+    tag=nothing; type::String="arrow", kws...)
+    if tag !== nothing
+        tag = "_$(tag)"
+    elseif :append in keys(kws)
+        tag = "_$(kws[:append])"
+    else
+        tag = ""
+    end
+    if tetrode !== nothing
+        tetstr = "_tet=$(tetrode)"
+    else
+        tetstr = ""
+    end
     DrWatson.datadir("exp_raw", "visualize_raw_neural",
-                              "$(animal)_$(day)_tet=$(tetrode)_cycles.$type")
+        "$(animal)_$(day)$(tetstr)_cycles$tag.$type")
 end
-function save_cycles(cycles, pos...)
-    cycles |> CSV.write(cyclepath(pos...))
+function save_cycles(cycles, pos...; kws...)
+    path=cyclepath(pos...; kws...)
+    Arrow.write(path, cycles; compress=:lz4)
 end
-function load_cycles(pos...; type="csv", kws...)
+function load_cycles(pos...; type="arrow", kws...)
     DI.load_table(pos...; tablepath=:cycles, type=type, kws...)
 end
 

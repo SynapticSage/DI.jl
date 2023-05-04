@@ -113,15 +113,30 @@ end
 
 
 """
+    save_cell_taginfo(cells::AbstractDataFrame, animal::String, day::Int, 
+        tag::String; kws...)
+
 convenience wrapper to save_cells, ensuring you don't forget to tag the data
 if you meant to
 
 in general, if you have some bonus cell information, it's a good idea to save
 it using a tag. optionally, above, a cell table can be loaded from multiple
 tags.
+
+# Arguments
+- `cells`: cell table
+- `animal`: animal name
+- `day`: day number
+- `tag`: tag for the cell/unit table; default is empty string; if tag is "*",
+then the path is constructed by globbing the tag
+# Returns
+- `paths`: a vector of paths
 """
 function save_cell_taginfo(cells::AbstractDataFrame, animal::String, day::Int, 
     tag::String; kws...)
+    if :type ∉ propertynames(kws)
+        kws = (kws..., :type=>"arrow")
+    end
     DI.save_table(cells, animal, day, tag; tablepath=:cells, kws...)
 end
 
@@ -134,7 +149,6 @@ function cells_to_type(animal::String, day::Int, tag::String="*",
         savekws=(;)
         save_table_at_path(data, path, type; save_kws...)
     end
-
 end
 
 function fill_missing_cellinds(cells::DataFrame, missing_val=missing)
