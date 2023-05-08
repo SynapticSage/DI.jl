@@ -202,20 +202,25 @@ module DI
             kws = (arrowkws..., load_kws...)
         end
     end
-    function load_table_at_path(path::String, type::String; load_kws...)
+    function load_table_at_path(path::String, type::String; select=nothing, load_kws...)
         if !(isfile(path))
             @error "File not found" path
         end
         if type == "csv"
-            data = CSV.read(path, DataFrame; load_kws...)
+            CSV.read(path, DataFrame; load_kws...)
         elseif type == "arrow"
-            data = fix_complex(copy(DataFrame(Arrow.Table(path))))
+            if select === nothing
+                fix_complex(copy(DataFrame(Arrow.Table(path))))
+            else
+                fix_complex(copy(DataFrame(Arrow.Table(path)[select])))
+            end
         end
     end
 
     function load_table(animal::String, day::Int, pos...; 
             tablepath=nothing, 
             append="",
+            select=nothing,
             load_kws::Union{Nothing,NamedTuple}=(;),
             kws...)
         if tablepath === nothing
@@ -232,7 +237,7 @@ module DI
         end
 
         function gettable(path)
-            data = load_table_at_path(path, type; load_kws...)
+            data = load_table_at_path(path, type; select, load_kws...)
             detect_complex_format_wrong = eltype.(eachcol(data)) .<: NamedTuple
             for i in findall(detect_complex_format_wrong)
                 data[!,i] = getproperty.(data[!,i], :re) + 
