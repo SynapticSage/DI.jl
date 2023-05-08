@@ -25,6 +25,8 @@ ca1ref_tetrodes = Dict(
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # LFP
+
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 export lfppath
@@ -72,8 +74,11 @@ function lfppath(animal::String, day::Int; tet=nothing, type::String="nc",
     file = tag === nothing ? file : replace(file, ".nc" => "_$tag.nc")
 end
 
+"""
+new doc
+"""
 function load_lfp(pos...; tet=nothing, vars=nothing, 
-        subtract_earlytime=false, kws...)
+    subtract_earlytime=false, kws...)
     if :tetrode in propertynames(kws)
         tet = kws[:tetrode]
     end
@@ -94,6 +99,16 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
         lfp = vcat(lfp...)
     else
         lfpPath = lfppath(pos...; tet=tet, kws...)
+        println(kws)
+        if :append in keys(kws)
+            append = kws[:append]
+            append_str = !startswith(append,"_") ? "_$append" : append
+            lfpPath = replace(lfpPath, ".nc" => "$append_str.nc")
+        elseif :tag in keys(kws)
+            tag = kws[:tag]
+            tag_str = !startswith(tag,"_") ? "_$tag" : tag
+            lfpPath = replace(lfpPath, ".nc" => "$tag_str.nc")
+        end
         @info lfpPath
         v = NetCDF.open(lfpPath)
         if "Var1" in keys(v.vars)
@@ -102,12 +117,15 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
         end
         keyset = keys(v.vars)
         if vars !== nothing
-            keyset = String.(vars)
+            keyset = intersect(keyset, String.(vars))
         end
+        println("Loading $keyset")
         lfp = Dict()
-        @showprogress "lfp" for var in keyset
+        prog = ProgressMeter.Progress(length(keyset))
+        for var in keyset
             q = try
-                var => Array(v.vars[var]) 
+                t = eltype(v.vars[var])
+                var => Array{t}(v.vars[var]) 
             catch
                 continue
                 # @info "issue, tryin another method" var
@@ -115,6 +133,7 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
                 # @info "success" var
             end
             push!(lfp, q)
+            ProgressMeter.next!(prog)
         end
         lfp = DataFrame(Dict(var => vec(lfp[var]) 
             for var in keys(lfp)))
@@ -122,7 +141,9 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
     if subtract_earlytime
         lfp[!,:time] .-= DI.min_time_records[end]
     end
-    lfp.broadraw = convert(Vector{Float16}, lfp.broadraw)
+    if :broadraw in keyset
+        lfp.broadraw = convert(Vector{Float16}, lfp.broadraw)
+    end
     return lfp
 end
 

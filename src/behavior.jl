@@ -30,7 +30,7 @@ Load the behavior data for a given animal and day.
 - `beh::DataFrame`: behavior data
 """
 function load_behavior(animal::String, day::Int, tag::String="";
-                      type::String=DI.load_default, kws...)
+                      type::String=DI.load_default, quick=false, kws...)
 
     function typeFunc(type, name)
         if occursin("Vec", string(name))
@@ -64,12 +64,8 @@ function load_behavior(animal::String, day::Int, tag::String="";
         end
         @assert ("x" ∈ names(beh)) "Fuck"
     end
-    if !startswith(animal, "super")
+    if !quick && !startswith(animal, "super")
         postprocess!(beh)
-    # else
-    #     for animal in groupby(beh, :animal) 
-    #         postprocess!(animal)
-    #     end
     end
     return beh
 end

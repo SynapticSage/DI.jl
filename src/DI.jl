@@ -143,6 +143,7 @@ module DI
             kws...)
         if :data_sources in keys(kws)
             data_source = kws[:data_sources]
+            kws = DIutils.namedtup.pop(kws, :data_sources)
         end
         if "beh" in data_source
             data_source = setdiff(data_source, ["beh"])
@@ -167,7 +168,15 @@ module DI
         # DI each data source
         data = Dict{String,Any}()
         m = center ? nothing : 0 # nothing asks normalize to find the mintime and remove it, a number passed means use that for min
-        for source ∈ load_order
+        if "behavior" ∈ load_order || "beh" ∈ load_order
+            data["behavior"] = DI.load_functions["behavior"](args...; kws...)
+            @assert typeof(data["behavior"]) != Nothing
+            if "time" ∈ names(data["behavior"])
+                @info "Centering behavior and **converting to minutes**"
+                data["behavior"].time, m = normalize(data, data["behavior"].time, ["behavior"], m);
+            end
+        end
+        Threads.@threads for source ∈ setdiff(load_order, ["behavior"])
             data[source] = DI.load_functions[source](args...)
             @assert typeof(data[source]) != Nothing
             if "time" ∈ names(data[source])

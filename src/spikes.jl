@@ -73,11 +73,11 @@ function save_spikes_taginfo(spikes::AbstractDataFrame, animal::String,
     if tag !== nothing
         append = "_" * tag
     elseif append !== nothing
-        append = "_" * append
+        append = startswith(append,"_") ? "_" * append : append
     else
         @error "Either tag or append must be specified"
     end
-    DI.save_table(spikes, pos...; tablepath=:spikes, append="_taginfo", kws...)
+    DI.save_table(spikes, animal, day; tablepath=:spikes, append=append, kws...)
 end
 
 

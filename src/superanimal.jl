@@ -255,13 +255,13 @@ end
 if both an uncleaned and cleaned versions of superanimal data, this
 can be used to find the time conversion factor between the two
 """
-function superanimal_timeconversion(superanimal, day; append="_clean")
+function superanimal_timeconversion(superanimal, day=0; append="_clean")
     beh2=DI.load_behavior(superanimal*append, day)
     andays=vcat((unique(eachrow(beh2[!,[:animal, :day]])).|>DataFrame)...)
     animals, days = andays.animal, andays.day
     beh1 = vcat([
-(x=DI.load_behavior(animal, day)[!,[:time]];x.animal.=animal;x) for (animal,day) in
-            zip(animals, days)]...; cols=:intersect)
+    (x=DI.load_behavior(animal, day)[!,[:time]];x.animal.=animal;x) for
+    (animal,day) in zip(animals, days)]...; cols=:intersect)
     sort!(beh1, [:animal, :time])
     sort!(beh2, [:animal, :time])
     g1=groupby(beh1, :animal)
@@ -271,3 +271,17 @@ function superanimal_timeconversion(superanimal, day; append="_clean")
     Dict(animal[1]=>g2[animal].time[1]-g1[animal].time[1] for animal in animals)
 end
 
+"""
+    behavior_0time_before_process
+
+Grab the first behavior time for each animal, day before having
+processed them into a superanimal dataset
+"""
+function behavior_0time_before_process(superanimal, day=0)
+    cells = load_cells(superanimal, day)
+    andays=vcat((unique(eachrow(cells[!,[:animal, :day]])).|>DataFrame)...)
+    animals, days = andays.animal, andays.day
+    Dict(animal=>sort(load_behavior(animal, day;quick=true).time)[1] 
+        for (animal,day)
+        in zip(animals, days))
+end
