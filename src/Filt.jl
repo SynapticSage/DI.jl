@@ -297,9 +297,7 @@ module Filt
             newkey = Symbol("arena_" * String(key))
             filters[newkey] = merge(filters[key], filters[:home])
         end
-
         filters[:none]        = nothing
-
         if keyfilter !== nothing
             K = filter(keyfilter, keys(filters))
             OrderedDict(k=>filters[k] for k in K)
@@ -309,8 +307,16 @@ module Filt
         else
             filters
         end
+        # Remove a couple of redundant filters we didn't intend
+        for item in redundant_filters
+            if item in keys(filters)
+                delete!(filters, item)
+            end
+        end
+        filters
     end
 
+    redundant_filters = [:home_home, :home_arena, :arena_home, :arena_arena]
     home_conditions = [key for key in keys(get_filters())
                        if occursin("home_",string(key))]
     arena_conditions = [key for key in keys(get_filters())

@@ -16,6 +16,8 @@ function spikespath(animal::String, day::Int; type::String=DI.load_default)
                                      "$(animal)_$(day)_labeled_spiking.$type"
                                     )
 end
+# spikespath(animal, day, tag) = replace(spikespath(animal, day), 
+#     r"\.(csv|arrow)$"=>"_$(tag).\\1")
 
 function load_spikes(animal::String, day::Int, tag=nothing;
         type::String=DI.load_default, beh=nothing, additional_columns=[],
