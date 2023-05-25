@@ -507,4 +507,15 @@ module DI
     fix_rgba(x::AbstractVector) = fix_rgba.(x)
     fix_rgba(x::NamedTuple)     = RGBA(x.r, x.g, x.b, x.alpha)
 
+    """
+        animaldays()
+    
+    Returns a list of all animal-day combinations in the active dataset.
+    """
+    function animaldays()
+        # TODO: have this load from a file as
+        # opposed to encoded in a module variable
+        return animal_set
+    end
+
 end

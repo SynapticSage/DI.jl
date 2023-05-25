@@ -94,8 +94,14 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
         tet  = collect(tets.tetrode)
     end
     if tet isa Vector
-        lfp = [(println(t); load_lfp(pos...; tet=t, vars=vars))
-               for t in tet]
+        lfp = Vector{DataFrame}(undef,length(tet))
+        prog = ProgressMeter.Progress(length(tet), 
+            desc="Loading LFP, tetrode list")
+        for (i,t) in enumerate(tet)|>collect
+            println(t);
+            lfp[i] = load_lfp(pos...; tet=t, vars=vars)
+            next!(prog)
+        end 
         lfp = vcat(lfp...)
     else
         lfpPath = lfppath(pos...; tet=tet, kws...)
@@ -121,7 +127,7 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
         end
         println("Loading $keyset")
         lfp = Dict()
-        prog = ProgressMeter.Progress(length(keyset))
+        prog = ProgressMeter.Progress(length(keyset), desc="Loading tet=$tet")
         for var in keyset
             q = try
                 t = eltype(v.vars[var])
@@ -141,7 +147,7 @@ function load_lfp(pos...; tet=nothing, vars=nothing,
     if subtract_earlytime
         lfp[!,:time] .-= DI.min_time_records[end]
     end
-    if :broadraw in keyset
+    if :broadraw in propertynames(lfp)
         lfp.broadraw = convert(Vector{Float16}, lfp.broadraw)
     end
     return lfp
@@ -149,9 +155,7 @@ end
 
 """
     save_lfp(l::AbstractDataFrame, pos...; tet=nothing, kws...)
-
 Saves lfp to netcdf file
-
 # Arguments
 - `l::AbstractDataFrame` : lfp data
 - `pos...` : position arguments to `lfppath`
@@ -161,7 +165,6 @@ Saves lfp to netcdf file
              - `ref=nothing` : whether to use reference file
              - tag=nothing : tag to add to file name
             see `lfppath` for more details
-             
 """
 function save_lfp(l::AbstractDataFrame, pos...; tet=nothing, 
     handlemissing=:error, kws...)
@@ -171,6 +174,9 @@ function save_lfp(l::AbstractDataFrame, pos...; tet=nothing,
     # elseif tet == :ca1ref
     #     animal = pos[1]
     #     tet = ca1ref_tetrodes[animal]
+    end
+    if :broadraw in propertynames(l)
+        l.broadraw = convert(Vector{Float32}, l.broadraw)
     end
     function getkeys(lfpPath::String)
         ncFile = NetCDF.open(lfpPath)
@@ -209,11 +215,15 @@ function save_lfp(l::AbstractDataFrame, pos...; tet=nothing,
     dir, base = dirname(file), basename(file)
     dir = islink(dir) ? readlink(dir) : dir
     file = joinpath(dir, base)
-    # k = (names(l) |> collect)[2]
+    k = (names(l) |> collect)[1]
     for k in names(l)
-        var = NetCDF.NcVar(k, d)
-        #var.nctype=NetCDF.getNCType(eltype(original_nc[k]))
-        var.nctype=NetCDF.getNCType(eltype(l[!,k]))
+        try
+            var = NetCDF.NcVar(k, d)
+            #var.nctype=NetCDF.getNCType(eltype(original_nc[k]))
+            var.nctype=NetCDF.getNCType(eltype(l[!,k]))
+        catch
+            @error "Check type of $k"
+        end
         push!(varlist,var)
     end
     NetCDF.create(lfpPath, varlist)
