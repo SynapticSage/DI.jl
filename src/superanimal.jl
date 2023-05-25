@@ -252,7 +252,8 @@ end
 
 """
     superanimal_timeconversion
-if both an uncleaned and cleaned versions of superanimal data, this
+
+if both an UNCLEANED and CLEANED Versions of superanimal data, this
 can be used to find the time conversion factor between the two
 """
 function superanimal_timeconversion(superanimal, day=0; append="_clean")
@@ -274,14 +275,62 @@ end
 """
     behavior_0time_before_process
 
+HELPS REFER to the ORIGINAL DATA .. you know what the first time used to be
+
+I tend to apply this to LFP data, as I usually am not making a superanimal
+version of those tables -- too much data for RAM
+
 Grab the first behavior time for each animal, day before having
 processed them into a superanimal dataset
 """
-function behavior_0time_before_process(superanimal, day=0)
+function get_0time_pre_superanimal(superanimal="super_clean", day::Int=0)
     cells = load_cells(superanimal, day)
     andays=vcat((unique(eachrow(cells[!,[:animal, :day]])).|>DataFrame)...)
     animals, days = andays.animal, andays.day
-    Dict(animal=>sort(load_behavior(animal, day;quick=true).time)[1] 
+    Dict(animal=>minimum(load_behavior(animal, day;quick=true).time)
         for (animal,day)
         in zip(animals, days))
 end
+# behavior_0time_before_process = behavior_0time_before_super
+get_0time = get_0time_pre_superanimal
+
+"""
+    convert_super_nonsuper
+
+HELPS REFER to the ORIGINAL DATA .. you know what the first time used to be
+
+I tend to apply this to LFP data, as I usually am not making a superanimal
+version of those tables -- too much data for RAM
+
+Grab the first behavior time for each animal, day before having
+processed them into a superanimal dataset
+"""
+function convert_super_nonsuper_time(superanimal="super_clean", day::Int=0)
+    cells = load_cells(superanimal, day)
+    andays=vcat((unique(eachrow(cells[!,[:animal, :day]])).|>DataFrame)...)
+    animals, days = andays.animal, andays.day
+    beh=load_behavior(superanimal,day)
+    Dict(animal=>
+        minimum(beh[beh.animal.==animal,:time]) -
+        minimum(load_behavior(animal, day;quick=true).time)
+        for (animal,day)
+        in zip(animals, days))
+end
+
+
+"""
+    Create a dict of times to subtract to zero each dataset (
+    the first behavior time in each animal, day)
+"""
+function convert_super_to_time0(superanimal="super_clean", day::Int=0;
+    individual::Bool=false)
+    println("convert_super_to_time0 for individual=", individual)
+    if individual
+        BEH = load_behavior(superanimal, day;quick=true)
+    else
+        BEH, CELLS = DI.load(superanimal, day; data_sources=["behavior", "cells"])
+    end
+    Dict(animal=>minimum(BEH[BEH.animal.==animal,:time]) for 
+         animal in unique(BEH.animal))
+end
+

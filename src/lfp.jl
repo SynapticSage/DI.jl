@@ -221,10 +221,10 @@ function save_lfp(l::AbstractDataFrame, pos...; tet=nothing,
             var = NetCDF.NcVar(k, d)
             #var.nctype=NetCDF.getNCType(eltype(original_nc[k]))
             var.nctype=NetCDF.getNCType(eltype(l[!,k]))
+            push!(varlist,var)
         catch
             @error "Check type of $k"
         end
-        push!(varlist,var)
     end
     NetCDF.create(lfpPath, varlist)
     ncFile = NetCDF.open(lfpPath; mode=NC_WRITE)
