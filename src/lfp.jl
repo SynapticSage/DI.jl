@@ -7,6 +7,7 @@ Module for loading up and saving lfp related datasets
 using DataFrames, NetCDF, Infiltrator, ProgressMeter, DrWatson
 export lfppath, load_lfp, save_lfp, load_cycles, save_cycles, cyclepath
 
+# TODO: EVENTUALLY, transfer all of this metadata into JSON or YAML files
 default_tetrodes = Dict(
     #"RY22" => 16, # lot of cells, theta = ass
     #"RY22" => 7, # good theta
@@ -22,6 +23,39 @@ ca1ref_tetrodes = Dict(
     "RY16" => 17,  # good theta 
     "super" => :ca1ref
     )
+
+"""
+    get_tetrode_set
+
+function for selecting named sets of tetrodes per animal
+"""
+function get_tetrode_set(tetrode_set; cells::Union{DataFrame,Nothing}=nothing, animal="super_clean", day=0)
+    if tetrode_set     == :all # all tetrodes
+        cells = cells === nothing ? DI.load_cells(animal, day) : cells
+        tets = Dict(animal=>unique(subset(cells, :animal.==animal).tetrode) 
+                    for animal in unique(cells.animal))
+    elseif tetrode_set == :best # tetrodes with best pop phase locking across animals
+        tets = Dict(
+            "RY16" => [56],
+            "RY22" => [29]
+        )
+    elseif tetrode_set == :synced 
+        tets = Dict(
+            "RY16" => [1],
+            "RY22" => [29]
+        )
+    elseif tetrode_set == :ca1ref
+        tets = Dict(
+            "RY16" => [:ca1ref],
+            "RY22" => [:ca1ref]
+        )
+    elseif tetrode_set == :pyr # pyramidal layer tetrodes
+        DI.annotate_pyrlayer!(cells)
+        tets = Dict(animal=>subset(cells, :animal=>a->a.==animal,
+            :pyrlayer=>p->p.!=true, view=true).tetrode |> unique for animal in
+                unique(cells.animal))
+    end
+end
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # LFP

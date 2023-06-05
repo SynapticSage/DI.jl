@@ -35,6 +35,7 @@ end
 
 
 function postprocess_ripples(ripples::AbstractDataFrame)
+    # Throw away ripples that are longer than 1 second
     goodinds = (ripples.stop - ripples.start) .< 1
     ripples[goodinds, :]
 end

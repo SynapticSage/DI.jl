@@ -70,16 +70,16 @@ module DI
 
     time_vars = Dict(
         "cycles"   => [:time, :start, :stop],
-        "spikes"   => :time,
-        "behavior" => :time,
-        "beh"      => :time,
-        "lfp"      => :time,
-        "coh"      => :time,
-        "avg"      => :time,
+        "spikes"   => [:time],
+        "behavior" => [:time],
+        "beh"      => [:time],
+        "lfp"      => [:time],
+        "coh"      => [:time],
+        "avg"      => [:time],
         "cells"    => [],
         "task"     => [],
-        "ripples"  => ["time", "start", "stop"],
-        "cycles"   => ["time", "start", "stop"]
+        "ripples"  => [:time, :start, :stop],
+        "cycles"   => [:time, :start, :stop]
     )
 
     # Module-wide settings
@@ -118,6 +118,7 @@ module DI
                 mintime = 0
             end
         end
+        println("Normalizing $data_source to start at $mintime")
 
         time .- mintime, mintime
     end
@@ -173,15 +174,19 @@ module DI
             @assert typeof(data["behavior"]) != Nothing
             if "time" ∈ names(data["behavior"])
                 @info "Centering behavior and **converting to minutes**"
-                data["behavior"].time, m = normalize(data, data["behavior"].time, ["behavior"], m);
+                data["behavior"].time, m = normalize(data, 
+                    data["behavior"].time, ["behavior"], m);
             end
         end
         Threads.@threads for source ∈ setdiff(load_order, ["behavior"])
             data[source] = DI.load_functions[source](args...)
             @assert typeof(data[source]) != Nothing
-            if "time" ∈ names(data[source])
-                @info "Centering $source and **converting to minutes**"
-                data[source].time, m = normalize(data, data[source].time, data_source, m);
+            @info "Centering $source and **converting to minutes**"
+            for timevar in time_vars[source]
+                if timevar ∈ propertynames(data[source])
+                    data[source][!,timevar], _ = normalize(data, 
+                        data[source][!,timevar], source, m);
+                end
             end
         end
         _set_mintime!(m)
@@ -252,9 +257,11 @@ module DI
             path = join(path, ".")
         end
         data = if '*' in path
+            printlin("Loading tables at paths=$path")
             data=[gettable(p) for p in glob(path)]
             vcat(data..., cols=:union)
         else
+            println("Loading table at path=$path")
             gettable(path)
         end
 
