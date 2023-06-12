@@ -290,19 +290,19 @@ module Filt
         # HOME
         for key in union(conditions, cuecorr_conditions)
             newkey = Symbol("home_" * String(key))
-            filters[newkey] = merge(filters[key], filters[:arena])
+            filters[newkey] = merge(filters[key], filters[:home]) # BUG 6/12/23
         end
         # ARENA
         for key in union(conditions, cuecorr_conditions)
             newkey = Symbol("arena_" * String(key))
-            filters[newkey] = merge(filters[key], filters[:home])
+            filters[newkey] = merge(filters[key], filters[:arena])
         end
         filters[:none]        = nothing
         if keyfilter !== nothing
             K = filter(keyfilter, keys(filters))
             OrderedDict(k=>filters[k] for k in K)
         elseif keyfilterstr !==nothing
-            K = Symbol.(filter(keyfilterstr, String.(collect(keys(filters)))))
+            K = Symbol.(filter(keyfilterstr, String.(collect(keys(filters))))) # BUG 6/12/23
             OrderedDict(k=>filters[k] for k in K)
         else
             filters
