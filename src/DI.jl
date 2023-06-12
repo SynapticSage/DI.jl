@@ -147,8 +147,7 @@ module DI
             kws = DIutils.namedtup.pop(kws, :data_sources)
         end
         if "beh" in data_source
-            data_source = setdiff(data_source, ["beh"])
-            push!(data_source, "behavior")
+            data_source = replace(data_source, "beh"=>"behavior")
         end
         # Establish a load order
         if as == "dict"

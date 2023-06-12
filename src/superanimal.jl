@@ -333,4 +333,4 @@ function convert_super_to_time0(superanimal="super_clean", day::Int=0;
     Dict(animal=>minimum(BEH[BEH.animal.==animal,:time]) for 
          animal in unique(BEH.animal))
 end
-
+get_0time_super(pos...;kws...) = convert_super_to_time0(pos...;kws...)

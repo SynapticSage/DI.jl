@@ -1,12 +1,9 @@
 #=
     lfp
-
 Module for loading up and saving lfp related datasets 
 =#
-
 using DataFrames, NetCDF, Infiltrator, ProgressMeter, DrWatson
 export lfppath, load_lfp, save_lfp, load_cycles, save_cycles, cyclepath
-
 # TODO: EVENTUALLY, transfer all of this metadata into JSON or YAML files
 default_tetrodes = Dict(
     #"RY22" => 16, # lot of cells, theta = ass
@@ -15,7 +12,6 @@ default_tetrodes = Dict(
     "RY16" => 5,  # good theta 
     "super" => :default
     )
-
 ca1ref_tetrodes = Dict(
     #"RY22" => 16, # lot of cells, theta = ass
     #"RY22" => 7, # good theta
@@ -23,13 +19,12 @@ ca1ref_tetrodes = Dict(
     "RY16" => 17,  # good theta 
     "super" => :ca1ref
     )
-
 """
     get_tetrode_set
-
 function for selecting named sets of tetrodes per animal
 """
-function get_tetrode_set(tetrode_set; cells::Union{DataFrame,Nothing}=nothing, animal="super_clean", day=0)
+function get_tetrode_set(tetrode_set; cells::Union{DataFrame,Nothing}=nothing, 
+                         animal="super_clean", day=0)
     if tetrode_set     == :all # all tetrodes
         cells = cells === nothing ? DI.load_cells(animal, day) : cells
         tets = Dict(animal=>unique(subset(cells, :animal.==animal).tetrode) 
@@ -56,10 +51,8 @@ function get_tetrode_set(tetrode_set; cells::Union{DataFrame,Nothing}=nothing, a
                 unique(cells.animal))
     end
 end
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # LFP
-
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
@@ -218,7 +211,7 @@ function save_lfp(l::AbstractDataFrame, pos...; tet=nothing,
         NetCDF.close(ncFile) # id of the ncfile handle itself, may not be needed in new version
         K
     end
-    if length(unique(l.tetrode)) == 1
+    if length(unique(l.tetrode)) == 1 && :append ∉ keys(kws)
         tet = l.tetrode[1];
     end
     lfpPath = lfppath(pos...; kws..., tet, write=true)
@@ -288,6 +281,32 @@ function split_lfp_by_tet(pos...; lfp::Union{DataFrame,Nothing}=nothing,
     end
 end
 
+"""
+    load_lfp_tetrodeset(animal, day, tetrode_set; convert=true, cells=nothing)
+
+Load LFP for a tetrode set
+# Arguments
+- `animal` : animal name
+- `day` : day
+- `tetrode_set` : tetrode set
+- `convert=true` : whether to 0 time to first behavioral event
+- `cells=nothing` : cells to load
+# Returns
+- `lfp` : lfp dataframe
+"""
+function load_lfp_tetrodeset(animal, day, tetrode_set; convert::Bool=true, 
+    cells::Union{AbstractDataFrame, Nothing}=nothing)
+    lfp_convert  = DI.get_0time_pre_superanimal()
+    all_tetrodes = DI.get_tetrode_set(tetrode_set; cells, animal, day)
+    println("Loading LFP tetrodes = $tetrode_set") 
+    printstyled("tet = ", all_tetrodes[animal], "\n", blink=true)
+    lfp = DI.load_lfp(animal, day, tet=all_tetrodes[animal])
+    if convert
+        lfp.time .-= lfp_convert[animal];
+    end
+    lfp
+end
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Oscillation cycles
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -344,4 +363,3 @@ export save_avgcoh
 function save_avgcoh(pos...; type="arrow", kws...)
     DI.save_table(pos...; tablepath=:avgcoh, type, kws...)
 end
-

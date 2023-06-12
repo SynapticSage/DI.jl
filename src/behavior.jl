@@ -80,6 +80,7 @@ function load_behavior(D::AbstractDict; kws...)
     end
     load_behavior(pos...; kws...)
 end
+load_beh = load_behavior
 
 """
     save_behavior()
